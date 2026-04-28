@@ -1,0 +1,30 @@
+# Entornos virtuales
+.venv/
+venv/
+env/
+.env
+
+# Archivos de caché de Python
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Docker
+docker-compose.override.yml
+.docker/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Flutter / Dart
+.dart_tool/
+build/
+*.iml
+.metadata
+.packages
+
+# macOS
+.DS_Store

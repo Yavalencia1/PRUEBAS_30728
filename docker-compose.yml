@@ -1,0 +1,45 @@
+# c:\Users\Anahi\PRUEBAS_30728\docker-compose.yml
+version: '3.9'
+
+services:
+
+  db:
+    image: postgres:15-alpine
+    container_name: routekids-db
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: admin
+      POSTGRES_DB: routekids
+    ports:
+      - "5433:5432"
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    networks:
+      - routekids-network
+
+  api:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: routekids-api
+    depends_on:
+      - db
+    environment:
+      DATABASE_URL: postgresql+asyncpg://postgres:admin@db:5432/routekids
+      APP_ENV: development
+      APP_DEBUG: "true"
+    ports:
+      - "8000:8000"
+
+    volumes:
+      - ./backend:/app
+    command: uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+    networks:
+      - routekids-network
+
+volumes:
+  postgres_data:
+
+networks:
+  routekids-network:
+    driver: bridge
