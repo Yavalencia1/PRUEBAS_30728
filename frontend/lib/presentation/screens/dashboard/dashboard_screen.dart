@@ -52,12 +52,17 @@ class DashboardData {
 // Provider (Riverpod)
 // --------------------------------------------------------
 
-final dashboardProvider = FutureProvider.autoDispose<DashboardData>((ref) async {
+final dashboardProvider = FutureProvider.autoDispose.family<DashboardData, String?>((ref, accessToken) async {
   try {
+    final headers = <String, String>{'Content-Type': 'application/json'};
+    if (accessToken != null && accessToken.isNotEmpty) {
+      headers['Authorization'] = 'Bearer $accessToken';
+    }
+
     // Intentar conectar con el backend real
     final response = await http.get(
       Uri.parse('http://localhost:8000/api/v1/dashboard/resumen'),
-      headers: {'Content-Type': 'application/json'},
+      headers: headers,
     ).timeout(const Duration(seconds: 3));
 
     if (response.statusCode == 200) {
@@ -93,11 +98,13 @@ DashboardData _getMockData() {
 // --------------------------------------------------------
 
 class DashboardScreen extends ConsumerWidget {
-  const DashboardScreen({super.key});
+  final String? accessToken;
+
+  const DashboardScreen({super.key, this.accessToken});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final asyncDashboardData = ref.watch(dashboardProvider);
+    final asyncDashboardData = ref.watch(dashboardProvider(accessToken));
 
     return Scaffold(
       backgroundColor: Colors.grey.shade50,

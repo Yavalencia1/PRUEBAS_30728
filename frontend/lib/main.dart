@@ -84,8 +84,9 @@ class _LoginPageState extends State<LoginPage> {
           }
         }
       } else {
+        final data = _parseBackendError(response.body);
         setState(() {
-          _errorMessage = 'Error: Email o contraseña incorrectos';
+          _errorMessage = data ?? 'Error: Email o contraseña incorrectos';
         });
       }
     } catch (e) {
@@ -97,6 +98,24 @@ class _LoginPageState extends State<LoginPage> {
         _isLoading = false;
       });
     }
+  }
+
+  String? _parseBackendError(String body) {
+    try {
+      final decoded = jsonDecode(body);
+      if (decoded is Map<String, dynamic>) {
+        final error = decoded['error'];
+        if (error is Map<String, dynamic> && error['mensaje'] is String) {
+          return error['mensaje'] as String;
+        }
+        if (decoded['mensaje'] is String) {
+          return decoded['mensaje'] as String;
+        }
+      }
+    } catch (_) {
+      return null;
+    }
+    return null;
   }
 
   @override
@@ -236,8 +255,9 @@ class _RegisterPageState extends State<RegisterPage> {
           }
         }
       } else {
+        final data = _parseBackendError(response.body);
         setState(() {
-          _errorMessage = 'Error al registrarse. Intenta de nuevo.';
+          _errorMessage = data ?? 'Error al registrarse. Intenta de nuevo.';
         });
       }
     } catch (e) {
@@ -396,7 +416,7 @@ class _HomePageState extends State<HomePage> {
       switch (rol.toLowerCase()) {
         case 'dueno':
           switch (_currentIndex) {
-            case 0: return const DashboardScreen();
+            case 0: return DashboardScreen(accessToken: widget.accessToken);
             case 1: return const Center(child: Text('Pantalla de Recorridos en construcción', style: TextStyle(fontSize: 20)));
             case 2: return const Center(child: Text('Pantalla de Alumnos en construcción', style: TextStyle(fontSize: 20)));
             case 3: return const Center(child: Text('Pantalla de Pagos en construcción', style: TextStyle(fontSize: 20)));

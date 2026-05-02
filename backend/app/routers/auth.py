@@ -17,19 +17,12 @@ from app.core.security import (
     obtener_subject_desde_token,
     verificar_contraseña,
 )
+from app.core.responses import respuesta_ok
 from app.models.usuario import RolUsuario, Usuario
 from app.schemas.auth import AuthMeResponse, LoginRequest, RefreshTokenRequest, RegistroRequest, TokenResponse
 
 router = APIRouter(tags=["Auth"])
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.api_v1_prefix}/auth/login")
-
-
-def _respuesta_estandarizada(datos: object, mensaje: str) -> dict:
-    return {
-        "ok": True,
-        "data": datos,
-        "mensaje": mensaje,
-    }
 
 
 async def obtener_usuario_actual(
@@ -78,7 +71,7 @@ async def registrar_usuario(
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El email ya está registrado") from error
 
     await db.refresh(usuario)
-    return _respuesta_estandarizada(
+    return respuesta_ok(
         AuthMeResponse.model_validate(usuario).model_dump(),
         "Usuario registrado correctamente",
     )
@@ -107,7 +100,7 @@ async def iniciar_sesion(
         "tokens": TokenResponse(access_token=access_token, refresh_token=refresh_token).model_dump(),
         "usuario": AuthMeResponse.model_validate(usuario).model_dump(),
     }
-    return _respuesta_estandarizada(datos_respuesta, "Inicio de sesión correcto")
+    return respuesta_ok(datos_respuesta, "Inicio de sesion correcto")
 
 
 @router.post("/refresh", response_model=dict)
@@ -137,7 +130,7 @@ async def refrescar_token(
         expires_delta=timedelta(days=settings.refresh_token_expire_days),
     )
 
-    return _respuesta_estandarizada(
+    return respuesta_ok(
         TokenResponse(access_token=access_token, refresh_token=refresh_token).model_dump(),
         "Token renovado correctamente",
     )
@@ -145,7 +138,7 @@ async def refrescar_token(
 
 @router.get("/me", response_model=dict)
 async def obtener_mi_perfil(usuario: Usuario = Depends(obtener_usuario_actual)) -> dict:
-    return _respuesta_estandarizada(
+    return respuesta_ok(
         AuthMeResponse.model_validate(usuario).model_dump(),
         "Perfil obtenido correctamente",
     )

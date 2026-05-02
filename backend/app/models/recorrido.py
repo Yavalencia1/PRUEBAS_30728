@@ -21,4 +21,4 @@ class Recorrido(Base):
 
     dueno = relationship("Usuario", back_populates="recorridos_dueno")
     rutas = relationship("Ruta", back_populates="recorrido", cascade="all, delete-orphan")
-    alumnos = relationship("Alumno", back_populates="recorrido", cascade="all, delete-orphan")
+    alumnos = relationship("Alumno", back_populates="recorrido")

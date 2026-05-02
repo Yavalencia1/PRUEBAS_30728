@@ -16,7 +16,7 @@ class Alumno(Base):
     nombre: Mapped[str] = mapped_column(String(100), nullable=False)
     apellido: Mapped[str] = mapped_column(String(100), nullable=False)
     padre_id: Mapped[int] = mapped_column(ForeignKey("usuarios.id", ondelete="CASCADE"), nullable=False, index=True)
-    recorrido_id: Mapped[int] = mapped_column(ForeignKey("recorridos.id", ondelete="CASCADE"), nullable=False, index=True)
+    recorrido_id: Mapped[int] = mapped_column(ForeignKey("recorridos.id", ondelete="RESTRICT"), nullable=False, index=True)
     parada_id: Mapped[int | None] = mapped_column(ForeignKey("paradas.id", ondelete="SET NULL"), nullable=True, index=True)
     fecha_nacimiento: Mapped[date] = mapped_column(Date, nullable=False)
 
