@@ -3,7 +3,10 @@ from decimal import Decimal
 from typing import Dict, List
 
 from fastapi import APIRouter, WebSocket, WebSocketDisconnect, status
-from sqlalchemy import select
+from sqlalchemy import and_, select
+from app.models.alumno import Alumno
+from app.models.recorrido import Recorrido
+from app.models.ruta import Ruta
 
 from app.core.database import AsyncSessionLocal
 from app.core.security import obtener_payload_desde_token, obtener_subject_desde_token
@@ -147,8 +150,33 @@ async def websocket_padres(websocket: WebSocket, sesion_id: str):
         if usuario is None:
             return
 
-        resultado = await db.execute(select(SesionRuta.id).where(SesionRuta.id == sesion_id_int))
-        if resultado.scalar_one_or_none() is None:
+        resultado = await db.execute(select(SesionRuta).where(SesionRuta.id == sesion_id_int))
+        sesion = resultado.scalar_one_or_none()
+        if sesion is None:
+            await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+            return
+
+        if usuario.rol == RolUsuario.conductor:
+            if sesion.conductor_id != usuario.id:
+                await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+                return
+        elif usuario.rol == RolUsuario.padre:
+            resultado_padre = await db.execute(
+                select(Alumno.id)
+                .join(Recorrido, Alumno.recorrido_id == Recorrido.id)
+                .join(Ruta, Ruta.recorrido_id == Recorrido.id)
+                .where(
+                    and_(
+                        Alumno.padre_id == usuario.id,
+                        Ruta.id == sesion.ruta_id,
+                    )
+                )
+                .limit(1)
+            )
+            if resultado_padre.scalar_one_or_none() is None:
+                await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
+                return
+        elif usuario.rol not in {RolUsuario.admin, RolUsuario.dueno}:
             await websocket.close(code=status.WS_1008_POLICY_VIOLATION)
             return
 
