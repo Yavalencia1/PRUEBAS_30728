@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_map/flutter_map.dart';
@@ -16,6 +17,7 @@ class MapaState {
   final bool hasActiveSession;
   final String? sessionId;
   final LatLng busLocation;
+  final LatLng previousBusLocation;
   final List<LatLng> stops;
   final String eta;
   final DateTime? lastUpdate;
@@ -26,6 +28,7 @@ class MapaState {
     required this.hasActiveSession,
     this.sessionId,
     required this.busLocation,
+    required this.previousBusLocation,
     required this.stops,
     required this.eta,
     this.lastUpdate,
@@ -37,6 +40,7 @@ class MapaState {
     bool? hasActiveSession,
     String? sessionId,
     LatLng? busLocation,
+    LatLng? previousBusLocation,
     List<LatLng>? stops,
     String? eta,
     DateTime? lastUpdate,
@@ -47,6 +51,7 @@ class MapaState {
       hasActiveSession: hasActiveSession ?? this.hasActiveSession,
       sessionId: sessionId ?? this.sessionId,
       busLocation: busLocation ?? this.busLocation,
+      previousBusLocation: previousBusLocation ?? this.previousBusLocation,
       stops: stops ?? this.stops,
       eta: eta ?? this.eta,
       lastUpdate: lastUpdate ?? this.lastUpdate,
@@ -61,13 +66,18 @@ class MapaState {
 
 class MapaController extends StateNotifier<MapaState> {
   WebSocketChannel? _channel;
+  Timer? _reconnectTimer;
+  int _reconnectAttempts = 0;
+  bool _isDisposed = false;
   final MapController mapController = MapController();
+  final String? accessToken;
 
-  MapaController()
+  MapaController({this.accessToken})
       : super(MapaState(
           isLoading: true,
           hasActiveSession: false,
           busLocation: const LatLng(-0.180653, -78.467834), // Quito default
+          previousBusLocation: const LatLng(-0.180653, -78.467834),
           stops: [
             const LatLng(-0.181000, -78.468000),
             const LatLng(-0.185000, -78.465000),
@@ -81,15 +91,24 @@ class MapaController extends StateNotifier<MapaState> {
 
   Future<void> _init() async {
     try {
+      if (accessToken == null || accessToken!.isEmpty) {
+        _sinSesionActiva();
+        return;
+      }
       // Intentamos verificar si hay una sesión activa
-      // Reemplaza esto con tu endpoint real de sesiones activas
+      // Endpoint que devuelve la sesión visible para el usuario actual
       final response = await http.get(
-        Uri.parse('http://localhost:8000/api/v1/sesiones/activa'),
+        Uri.parse('http://localhost:8000/api/v1/sesiones/activa-para-usuario'),
+        headers: {'Authorization': 'Bearer $accessToken'},
       ).timeout(const Duration(seconds: 3));
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-        final sessionId = data['id'].toString();
+        final sessionId = data['data']?['id']?.toString();
+        if (sessionId == null) {
+          _sinSesionActiva();
+          return;
+        }
         state = state.copyWith(
           isLoading: false,
           hasActiveSession: true,
@@ -97,29 +116,52 @@ class MapaController extends StateNotifier<MapaState> {
         );
         _connectWebSocket(sessionId);
       } else {
-        // Fallback a mock para demostración si no hay endpoint
-        _usarMock();
+        _sinSesionActiva();
       }
     } catch (e) {
-      // Si el servidor no está, usamos mock para ver el diseño
-      _usarMock();
+      _sinSesionActiva();
     }
   }
 
-  void _usarMock() {
+  void _sinSesionActiva() {
     state = state.copyWith(
       isLoading: false,
-      hasActiveSession: true,
-      sessionId: 'mock_session_padre_123',
+      hasActiveSession: false,
+      sessionId: null,
     );
-    _connectWebSocket('mock_session_padre_123');
+  }
+
+  Uri _buildWebSocketUri(String sessionId) {
+    final baseUri = Uri.parse('ws://localhost:8000/ws/gps/$sessionId');
+    if (accessToken == null || accessToken!.isEmpty) {
+      return baseUri;
+    }
+    return baseUri.replace(queryParameters: {'token': accessToken!});
+  }
+
+  void _scheduleReconnect() {
+    if (_isDisposed) return;
+    if (!state.hasActiveSession || state.sessionId == null) return;
+    if (state.isWsConnected) return;
+    if (accessToken == null || accessToken!.isEmpty) return;
+
+    _reconnectTimer?.cancel();
+    final delaySeconds = math.min(30, 2 * (1 << _reconnectAttempts));
+    _reconnectAttempts = math.min(_reconnectAttempts + 1, 5);
+    _reconnectTimer = Timer(Duration(seconds: delaySeconds), () {
+      if (_isDisposed || state.sessionId == null) return;
+      _connectWebSocket(state.sessionId!);
+    });
   }
 
   void _connectWebSocket(String sessionId) {
     try {
+      _reconnectTimer?.cancel();
+      _channel?.sink.close();
       _channel = WebSocketChannel.connect(
-        Uri.parse('ws://localhost:8000/ws/gps/$sessionId'),
+        _buildWebSocketUri(sessionId),
       );
+      _reconnectAttempts = 0;
       state = state.copyWith(isWsConnected: true);
 
       _channel!.stream.listen(
@@ -128,17 +170,25 @@ class MapaController extends StateNotifier<MapaState> {
             final data = jsonDecode(message);
             final newLocation = LatLng(data['lat'], data['lng']);
             state = state.copyWith(
+              previousBusLocation: state.busLocation,
               busLocation: newLocation,
               lastUpdate: DateTime.now(),
               eta: '10 min aprox.', // Aquí calcularías con la API
             );
           } catch (_) {}
         },
-        onDone: () => state = state.copyWith(isWsConnected: false),
-        onError: (e) => state = state.copyWith(isWsConnected: false),
+        onDone: () {
+          state = state.copyWith(isWsConnected: false);
+          _scheduleReconnect();
+        },
+        onError: (e) {
+          state = state.copyWith(isWsConnected: false);
+          _scheduleReconnect();
+        },
       );
     } catch (e) {
       state = state.copyWith(isWsConnected: false);
+      _scheduleReconnect();
     }
   }
 
@@ -148,27 +198,33 @@ class MapaController extends StateNotifier<MapaState> {
 
   @override
   void dispose() {
+    _isDisposed = true;
+    _reconnectTimer?.cancel();
     _channel?.sink.close();
     mapController.dispose();
     super.dispose();
   }
 }
 
-final mapaProvider = StateNotifierProvider.autoDispose<MapaController, MapaState>((ref) {
-  return MapaController();
-});
+final mapaProvider = StateNotifierProvider.autoDispose.family<MapaController, MapaState, String?>(
+  (ref, accessToken) {
+    return MapaController(accessToken: accessToken);
+  },
+);
 
 // --------------------------------------------------------
 // Pantalla (Screen)
 // --------------------------------------------------------
 
 class MapaScreen extends ConsumerWidget {
-  const MapaScreen({super.key});
+  final String? accessToken;
+
+  const MapaScreen({super.key, this.accessToken});
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final state = ref.watch(mapaProvider);
-    final controller = ref.read(mapaProvider.notifier);
+    final state = ref.watch(mapaProvider(accessToken));
+    final controller = ref.read(mapaProvider(accessToken).notifier);
 
     if (state.isLoading) {
       return const Center(child: CircularProgressIndicator());
@@ -207,7 +263,6 @@ class MapaScreen extends ConsumerWidget {
               ),
               MarkerLayer(
                 markers: [
-                  // Marcadores de paradas
                   ...state.stops.map(
                     (stop) => Marker(
                       point: stop,
@@ -220,28 +275,32 @@ class MapaScreen extends ConsumerWidget {
                       ),
                     ),
                   ),
-                  // Marcador principal del bus
-                  Marker(
-                    point: state.busLocation,
-                    width: 60,
-                    height: 60,
-                    // Usamos TweenAnimationBuilder para animar el movimiento suave del marcador
-                    child: TweenAnimationBuilder<LatLng>(
-                      tween: LatLngTween(
-                        begin: state.busLocation,
-                        end: state.busLocation,
-                      ),
-                      duration: const Duration(seconds: 1),
-                      builder: (context, latLng, child) {
-                        return const Icon(
-                          Icons.directions_bus,
-                          color: Color(0xFF534AB7),
-                          size: 45,
-                        );
-                      },
-                    ),
-                  ),
                 ],
+              ),
+              TweenAnimationBuilder<LatLng>(
+                tween: LatLngTween(
+                  begin: state.previousBusLocation,
+                  end: state.busLocation,
+                ),
+                duration: const Duration(milliseconds: 800),
+                curve: Curves.easeOutCubic,
+                builder: (context, animatedLocation, child) {
+                  return MarkerLayer(
+                    markers: [
+                      Marker(
+                        point: animatedLocation,
+                        width: 60,
+                        height: 60,
+                        child: child!,
+                      ),
+                    ],
+                  );
+                },
+                child: const Icon(
+                  Icons.directions_bus,
+                  color: Color(0xFF534AB7),
+                  size: 45,
+                ),
               ),
             ],
           ),

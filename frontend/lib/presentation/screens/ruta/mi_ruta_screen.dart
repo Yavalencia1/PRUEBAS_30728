@@ -1,5 +1,6 @@
 import 'dart:async';
 import 'dart:convert';
+import 'dart:math' as math;
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
@@ -95,6 +96,10 @@ class MiRutaState {
 class MiRutaController extends StateNotifier<MiRutaState> {
   Timer? _gpsTimer;
   WebSocketChannel? _channel;
+  Timer? _reconnectTimer;
+  int _reconnectAttempts = 0;
+  bool _isDisposed = false;
+  bool _shouldReconnect = false;
   String accessToken;
 
   MiRutaController({required this.accessToken})
@@ -223,24 +228,61 @@ class MiRutaController extends StateNotifier<MiRutaState> {
 
   void _connectWebSocket(String sessionId) {
     try {
+      _shouldReconnect = true;
+      _reconnectTimer?.cancel();
+      _channel?.sink.close();
       _channel = WebSocketChannel.connect(
-        Uri.parse('ws://localhost:8000/ws/conductor/$sessionId'),
+        _buildWebSocketUri(sessionId),
       );
+      _reconnectAttempts = 0;
       state = state.copyWith(isWsConnected: true);
 
       _channel!.stream.listen(
         (message) {},
-        onDone: () => state = state.copyWith(isWsConnected: false),
-        onError: (e) => state = state.copyWith(isWsConnected: false),
+        onDone: () {
+          state = state.copyWith(isWsConnected: false);
+          _scheduleReconnect();
+        },
+        onError: (e) {
+          state = state.copyWith(isWsConnected: false);
+          _scheduleReconnect();
+        },
       );
     } catch (e) {
       state = state.copyWith(isWsConnected: false);
+      _scheduleReconnect();
     }
   }
 
+  Uri _buildWebSocketUri(String sessionId) {
+    final baseUri = Uri.parse('ws://localhost:8000/ws/conductor/$sessionId');
+    if (accessToken.isEmpty) {
+      return baseUri;
+    }
+    return baseUri.replace(queryParameters: {'token': accessToken});
+  }
+
+  void _scheduleReconnect() {
+    if (_isDisposed) return;
+    if (!state.isRouteActive || state.sessionId == null) return;
+    if (!_shouldReconnect || state.isWsConnected) return;
+    if (accessToken.isEmpty) return;
+
+    _reconnectTimer?.cancel();
+    final delaySeconds = math.min(30, 2 * (1 << _reconnectAttempts));
+    _reconnectAttempts = math.min(_reconnectAttempts + 1, 5);
+    _reconnectTimer = Timer(Duration(seconds: delaySeconds), () {
+      if (_isDisposed || state.sessionId == null) return;
+      _connectWebSocket(state.sessionId!);
+    });
+  }
+
   void _disconnectWebSocket() {
+    _reconnectTimer?.cancel();
     _channel?.sink.close();
     _channel = null;
+    _reconnectAttempts = 0;
+    _shouldReconnect = false;
   }
 
   void _startGpsSimulation() {
@@ -255,6 +297,7 @@ class MiRutaController extends StateNotifier<MiRutaState> {
           _channel!.sink.add(jsonEncode(location));
         } catch (_) {
           state = state.copyWith(isWsConnected: false);
+          _scheduleReconnect();
         }
       }
     });
@@ -383,6 +426,9 @@ class MiRutaController extends StateNotifier<MiRutaState> {
 
   @override
   void dispose() {
+    _isDisposed = true;
+    _shouldReconnect = false;
+    _reconnectTimer?.cancel();
     _stopGpsSimulation();
     _disconnectWebSocket();
     super.dispose();

@@ -264,6 +264,77 @@ async def obtener_sesion_activa(
 	return _respuesta_estandarizada(_serializar_sesion(sesion), "Sesión activa obtenida correctamente")
 
 
+@router.get("/activa-para-usuario", response_model=dict)
+async def obtener_sesion_activa_para_usuario(
+	db: AsyncSession = Depends(get_db),
+	usuario: Usuario = Depends(obtener_usuario_actual),
+) -> dict:
+	"""
+	Obtiene una sesión activa visible para el usuario actual.
+	- Conductor: su sesión en curso.
+	- Padre: una sesión en curso asociada a sus alumnos.
+	- Admin/Dueño: la sesión en curso más reciente.
+	"""
+	consulta = None
+
+	if usuario.rol.value == "conductor":
+		consulta = (
+			select(SesionRuta)
+			.options(selectinload(SesionRuta.ruta), selectinload(SesionRuta.conductor))
+			.where(
+				and_(
+					SesionRuta.conductor_id == usuario.id,
+					SesionRuta.estado == EstadoSesionRuta.en_curso,
+				)
+			)
+			.order_by(SesionRuta.inicio.desc())
+			.limit(1)
+		)
+	elif usuario.rol.value == "padre":
+		rutas_padre = (
+			select(Ruta.id)
+			.join(Recorrido, Ruta.recorrido_id == Recorrido.id)
+			.join(Alumno, Recorrido.id == Alumno.recorrido_id)
+			.where(Alumno.padre_id == usuario.id)
+			.distinct()
+		)
+		consulta = (
+			select(SesionRuta)
+			.options(selectinload(SesionRuta.ruta), selectinload(SesionRuta.conductor))
+			.where(
+				and_(
+					SesionRuta.estado == EstadoSesionRuta.en_curso,
+					SesionRuta.ruta_id.in_(rutas_padre),
+				)
+			)
+			.order_by(SesionRuta.inicio.desc())
+			.limit(1)
+		)
+	elif usuario.rol.value in {"admin", "dueno"}:
+		consulta = (
+			select(SesionRuta)
+			.options(selectinload(SesionRuta.ruta), selectinload(SesionRuta.conductor))
+			.where(SesionRuta.estado == EstadoSesionRuta.en_curso)
+			.order_by(SesionRuta.inicio.desc())
+			.limit(1)
+		)
+	else:
+		raise HTTPException(
+			status_code=status.HTTP_403_FORBIDDEN,
+			detail="Rol no autorizado para consultar sesiones activas",
+		)
+
+	resultado = await db.execute(consulta)
+	sesion = resultado.scalar_one_or_none()
+	if sesion is None:
+		raise HTTPException(
+			status_code=status.HTTP_404_NOT_FOUND,
+			detail="No hay sesión activa disponible",
+		)
+
+	return _respuesta_estandarizada(_serializar_sesion(sesion), "Sesión activa obtenida correctamente")
+
+
 @router.get("/historial", response_model=dict)
 async def obtener_historial_sesiones(
 	db: AsyncSession = Depends(get_db),

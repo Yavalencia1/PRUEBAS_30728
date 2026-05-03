@@ -452,7 +452,7 @@ class _HomePageState extends State<HomePage> {
         case 'admin':
           switch (_currentIndex) {
             case 0:
-              return const MapaScreen();
+              return MapaScreen(accessToken: widget.accessToken);
             case 1:
               return AsistenciaScreen(
                 accessToken: widget.accessToken,
@@ -468,13 +468,13 @@ class _HomePageState extends State<HomePage> {
                 child: Text('Perfil de Admin', style: TextStyle(fontSize: 20)),
               );
             default:
-              return const MapaScreen();
+              return MapaScreen(accessToken: widget.accessToken);
           }
         case 'padre':
         default:
           switch (_currentIndex) {
             case 0:
-              return const MapaScreen();
+              return MapaScreen(accessToken: widget.accessToken);
             case 1:
               return AsistenciaScreen(
                 accessToken: widget.accessToken,
@@ -495,7 +495,7 @@ class _HomePageState extends State<HomePage> {
                 child: Text('Perfil de Padre', style: TextStyle(fontSize: 20)),
               );
             default:
-              return const MapaScreen();
+              return MapaScreen(accessToken: widget.accessToken);
           }
       }
     }
