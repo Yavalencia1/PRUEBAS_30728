@@ -4,6 +4,9 @@ import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:frontend/presentation/layouts/main_layout.dart';
 import 'package:frontend/presentation/screens/dashboard/dashboard_screen.dart';
+import 'package:frontend/presentation/screens/recorridos/recorridos_screen.dart';
+import 'package:frontend/presentation/screens/paradas/paradas_screen.dart';
+import 'package:frontend/presentation/screens/alumnos/alumnos_screen.dart';
 import 'package:frontend/presentation/screens/ruta/mi_ruta_screen.dart';
 import 'package:frontend/presentation/screens/mapa/mapa_screen.dart';
 import 'package:frontend/presentation/screens/asistencia/asistencia_screen.dart';
@@ -399,25 +402,26 @@ class _HomePageState extends State<HomePage> {
             case 0:
               return const DashboardScreen();
             case 1:
-              return const Center(
-                child: Text(
-                  'Pantalla de Recorridos en construcción',
-                  style: TextStyle(fontSize: 20),
-                ),
+              return RecorridosScreen(
+                accessToken: widget.accessToken,
+                usuario: widget.usuario,
               );
             case 2:
-              return const Center(
-                child: Text(
-                  'Pantalla de Alumnos en construcción',
-                  style: TextStyle(fontSize: 20),
-                ),
+              return ParadasScreen(
+                accessToken: widget.accessToken,
+                usuario: widget.usuario,
               );
             case 3:
-              return PagosScreen(
+              return AlumnosScreen(
                 accessToken: widget.accessToken,
                 usuario: widget.usuario,
               );
             case 4:
+              return PagosScreen(
+                accessToken: widget.accessToken,
+                usuario: widget.usuario,
+              );
+            case 5:
               return const Center(
                 child: Text('Perfil de Dueño', style: TextStyle(fontSize: 20)),
               );

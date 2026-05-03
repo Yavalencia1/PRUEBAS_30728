@@ -78,11 +78,7 @@ class MapaController extends StateNotifier<MapaState> {
           hasActiveSession: false,
           busLocation: const LatLng(-0.180653, -78.467834), // Quito default
           previousBusLocation: const LatLng(-0.180653, -78.467834),
-          stops: [
-            const LatLng(-0.181000, -78.468000),
-            const LatLng(-0.185000, -78.465000),
-            const LatLng(-0.189000, -78.462000),
-          ],
+          stops: const [],
           eta: 'Calculando...',
           isWsConnected: false,
         )) {
@@ -114,6 +110,7 @@ class MapaController extends StateNotifier<MapaState> {
           hasActiveSession: true,
           sessionId: sessionId,
         );
+        await _cargarParadas(sessionId);
         _connectWebSocket(sessionId);
       } else {
         _sinSesionActiva();
@@ -128,7 +125,36 @@ class MapaController extends StateNotifier<MapaState> {
       isLoading: false,
       hasActiveSession: false,
       sessionId: null,
+      stops: const [],
     );
+  }
+
+  Future<void> _cargarParadas(String sessionId) async {
+    if (accessToken == null || accessToken!.isEmpty) {
+      return;
+    }
+    try {
+      final response = await http.get(
+        Uri.parse('http://localhost:8000/api/v1/paradas/por-sesion/$sessionId'),
+        headers: {'Authorization': 'Bearer $accessToken'},
+      ).timeout(const Duration(seconds: 4));
+
+      if (response.statusCode != 200) {
+        return;
+      }
+
+      final payload = jsonDecode(response.body) as Map<String, dynamic>;
+      final data = payload['data'] as List<dynamic>? ?? const [];
+      final stops = data
+          .map((item) => LatLng(
+                (item['latitud'] as num).toDouble(),
+                (item['longitud'] as num).toDouble(),
+              ))
+          .toList();
+      state = state.copyWith(stops: stops);
+    } catch (_) {
+      return;
+    }
   }
 
   Uri _buildWebSocketUri(String sessionId) {
