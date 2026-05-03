@@ -1,92 +1,56 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:http/http.dart' as http;
+import 'package:frontend/controlador/pagos_service.dart';
+import 'package:frontend/modelo/pago_modelo.dart';
 
-// --------------------------------------------------------
-// Modelos de Datos
-// --------------------------------------------------------
+class DashboardPaymentRow {
+  final String label;
+  final String value;
 
-class PagoPendiente {
-  final String alumno;
-  final double monto;
-
-  PagoPendiente({required this.alumno, required this.monto});
-
-  factory PagoPendiente.fromJson(Map<String, dynamic> json) {
-    return PagoPendiente(
-      alumno: json['alumno'] ?? 'Desconocido',
-      monto: (json['monto'] ?? 0).toDouble(),
-    );
-  }
+  const DashboardPaymentRow({required this.label, required this.value});
 }
 
 class DashboardData {
-  final int totalAlumnosActivos;
-  final int recorridosActivos;
-  final double pagosPendientesMes;
-  final double pagosCobradosMes;
-  final List<PagoPendiente> ultimosPagosPendientes;
+  final int pendientesCantidad;
+  final double pendientesTotal;
+  final int pagadosCantidad;
+  final double pagadosTotal;
+  final int vencidosCantidad;
+  final double vencidosTotal;
+  final List<PagoModelo> ultimosPagosPendientes;
 
-  DashboardData({
-    required this.totalAlumnosActivos,
-    required this.recorridosActivos,
-    required this.pagosPendientesMes,
-    required this.pagosCobradosMes,
+  const DashboardData({
+    required this.pendientesCantidad,
+    required this.pendientesTotal,
+    required this.pagadosCantidad,
+    required this.pagadosTotal,
+    required this.vencidosCantidad,
+    required this.vencidosTotal,
     required this.ultimosPagosPendientes,
   });
-
-  factory DashboardData.fromJson(Map<String, dynamic> json) {
-    final pagosJson = json['ultimos_pagos_pendientes'] as List? ?? [];
-    return DashboardData(
-      totalAlumnosActivos: json['total_alumnos_activos'] ?? 0,
-      recorridosActivos: json['recorridos_activos'] ?? 0,
-      pagosPendientesMes: (json['pagos_pendientes_mes'] ?? 0).toDouble(),
-      pagosCobradosMes: (json['pagos_cobrados_mes'] ?? 0).toDouble(),
-      ultimosPagosPendientes: pagosJson.map((e) => PagoPendiente.fromJson(e)).toList(),
-    );
-  }
 }
 
-// --------------------------------------------------------
-// Provider (Riverpod)
-// --------------------------------------------------------
+final dashboardProvider = FutureProvider.autoDispose<DashboardData>((
+  ref,
+) async {
+  final service = ref.watch(pagosServiceProvider);
+  final resumen = await service.obtenerResumenPagos();
+  final pagosPendientes = await service.listarPagos(estado: 'pendiente');
 
-final dashboardProvider = FutureProvider.autoDispose<DashboardData>((ref) async {
-  try {
-    // Intentar conectar con el backend real
-    final response = await http.get(
-      Uri.parse('http://localhost:8000/api/v1/dashboard/resumen'),
-      headers: {'Content-Type': 'application/json'},
-    ).timeout(const Duration(seconds: 3));
+  final pendiente = resumen.porEstado['pendiente'];
+  final pagado = resumen.porEstado['pagado'];
+  final vencido = resumen.porEstado['vencido'];
 
-    if (response.statusCode == 200) {
-      return DashboardData.fromJson(jsonDecode(response.body));
-    }
-    
-    // Si no es 200 o el endpoint no existe, caemos a datos mock
-    return _getMockData();
-  } catch (e) {
-    // Si hay error de conexión o timeout, usamos mock data
-    return _getMockData();
-  }
-});
-
-DashboardData _getMockData() {
   return DashboardData(
-    totalAlumnosActivos: 142,
-    recorridosActivos: 5,
-    pagosPendientesMes: 450.0,
-    pagosCobradosMes: 3200.0,
-    ultimosPagosPendientes: [
-      PagoPendiente(alumno: 'Juan Pérez', monto: 50.0),
-      PagoPendiente(alumno: 'María López', monto: 50.0),
-      PagoPendiente(alumno: 'Carlos Ruiz', monto: 50.0),
-      PagoPendiente(alumno: 'Ana Torres', monto: 50.0),
-      PagoPendiente(alumno: 'Luis Gómez', monto: 50.0),
-    ],
+    pendientesCantidad: pendiente?.cantidad ?? 0,
+    pendientesTotal: pendiente?.total ?? 0,
+    pagadosCantidad: pagado?.cantidad ?? 0,
+    pagadosTotal: pagado?.total ?? 0,
+    vencidosCantidad: vencido?.cantidad ?? 0,
+    vencidosTotal: vencido?.total ?? 0,
+    ultimosPagosPendientes: pagosPendientes.take(5).toList(),
   );
-}
+});
 
 // --------------------------------------------------------
 // Pantalla (Screen)
@@ -121,8 +85,7 @@ class DashboardScreen extends ConsumerWidget {
                   ),
                 ),
                 const SizedBox(height: 24),
-                
-                // Grid de Métricas
+
                 LayoutBuilder(
                   builder: (context, constraints) {
                     final width = constraints.maxWidth;
@@ -146,28 +109,25 @@ class DashboardScreen extends ConsumerWidget {
                       crossAxisSpacing: 16,
                       children: [
                         _MetricCard(
-                          title: 'Alumnos Activos',
-                          value: data.totalAlumnosActivos.toString(),
-                          icon: Icons.school,
-                          color: Colors.purple,
-                        ),
-                        _MetricCard(
-                          title: 'Recorridos Activos',
-                          value: data.recorridosActivos.toString(),
-                          icon: Icons.directions_bus,
-                          color: Colors.teal,
-                        ),
-                        _MetricCard(
                           title: 'Pagos Pendientes',
-                          value: '\$${data.pagosPendientesMes.toStringAsFixed(2)}',
+                          value:
+                              '${data.pendientesCantidad} (${data.pendientesTotal.toStringAsFixed(2)})',
                           icon: Icons.warning_amber_rounded,
-                          color: Colors.amber.shade700,
+                          color: Colors.orange,
                         ),
                         _MetricCard(
                           title: 'Pagos Cobrados',
-                          value: '\$${data.pagosCobradosMes.toStringAsFixed(2)}',
+                          value:
+                              '${data.pagadosCantidad} (${data.pagadosTotal.toStringAsFixed(2)})',
                           icon: Icons.check_circle_outline,
                           color: Colors.green,
+                        ),
+                        _MetricCard(
+                          title: 'Pagos Vencidos',
+                          value:
+                              '${data.vencidosCantidad} (${data.vencidosTotal.toStringAsFixed(2)})',
+                          icon: Icons.error_outline,
+                          color: Colors.red,
                         ),
                       ],
                     );
@@ -176,7 +136,6 @@ class DashboardScreen extends ConsumerWidget {
 
                 const SizedBox(height: 32),
 
-                // Lista de Últimos Pagos Pendientes
                 Card(
                   elevation: 2,
                   color: Colors.white,
@@ -206,27 +165,39 @@ class DashboardScreen extends ConsumerWidget {
                         if (data.ultimosPagosPendientes.isEmpty)
                           const Padding(
                             padding: EdgeInsets.all(16.0),
-                            child: Text('No hay pagos pendientes.', style: TextStyle(color: Colors.grey)),
+                            child: Text(
+                              'No hay pagos pendientes.',
+                              style: TextStyle(color: Colors.grey),
+                            ),
                           )
                         else
                           ListView.separated(
                             shrinkWrap: true,
                             physics: const NeverScrollableScrollPhysics(),
                             itemCount: data.ultimosPagosPendientes.length,
-                            separatorBuilder: (context, index) => const Divider(),
+                            separatorBuilder: (context, index) =>
+                                const Divider(),
                             itemBuilder: (context, index) {
                               final pago = data.ultimosPagosPendientes[index];
                               return ListTile(
                                 contentPadding: EdgeInsets.zero,
                                 leading: CircleAvatar(
                                   backgroundColor: Colors.amber.shade100,
-                                  child: Icon(Icons.person, color: Colors.amber.shade800),
+                                  child: Icon(
+                                    Icons.person,
+                                    color: Colors.amber.shade800,
+                                  ),
                                 ),
                                 title: Text(
-                                  pago.alumno,
-                                  style: const TextStyle(fontWeight: FontWeight.w600),
+                                  pago.alumnoNombre ??
+                                      'Alumno #${pago.alumnoId}',
+                                  style: const TextStyle(
+                                    fontWeight: FontWeight.w600,
+                                  ),
                                 ),
-                                subtitle: const Text('Pendiente de pago'),
+                                subtitle: Text(
+                                  'Vence: ${pago.fechaVencimiento.year.toString().padLeft(4, '0')}-${pago.fechaVencimiento.month.toString().padLeft(2, '0')}-${pago.fechaVencimiento.day.toString().padLeft(2, '0')}',
+                                ),
                                 trailing: Text(
                                   '\$${pago.monto.toStringAsFixed(2)}',
                                   style: const TextStyle(

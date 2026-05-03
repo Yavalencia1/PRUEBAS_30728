@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import datetime
 from enum import Enum
 
-from sqlalchemy import DateTime, Enum as SAEnum, ForeignKey, Integer
+from sqlalchemy import DateTime, Enum as SAEnum, ForeignKey, Integer, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -18,6 +18,9 @@ class EstadoAsistencia(str, Enum):
 
 class Asistencia(Base):
     __tablename__ = "asistencias"
+    __table_args__ = (
+        UniqueConstraint("sesion_id", "alumno_id", name="uq_asistencias_sesion_alumno"),
+    )
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
     sesion_id: Mapped[int] = mapped_column(ForeignKey("sesiones_ruta.id", ondelete="CASCADE"), nullable=False, index=True)

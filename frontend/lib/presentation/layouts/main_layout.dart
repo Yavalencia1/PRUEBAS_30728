@@ -54,6 +54,7 @@ class _MainLayoutState extends State<MainLayout> {
           NavItem('Mapa en Vivo', Icons.location_on),
           NavItem('Asistencia de mi Hijo', Icons.child_care),
           NavItem('Pagos', Icons.payment),
+          NavItem('Notificaciones', Icons.notifications),
           NavItem('Perfil', Icons.person),
         ];
     }
@@ -89,10 +90,12 @@ class _MainLayoutState extends State<MainLayout> {
           selectedFontSize: 12,
           unselectedFontSize: 12,
           items: items
-              .map((item) => BottomNavigationBarItem(
-                    icon: Icon(item.icon),
-                    label: item.label,
-                  ))
+              .map(
+                (item) => BottomNavigationBarItem(
+                  icon: Icon(item.icon),
+                  label: item.label,
+                ),
+              )
               .toList(),
         ),
       );
@@ -134,7 +137,11 @@ class _MainLayoutState extends State<MainLayout> {
               onLogout: widget.onLogout,
               primaryColor: _primaryColor,
             ),
-            const VerticalDivider(width: 1, thickness: 1, color: Colors.black12),
+            const VerticalDivider(
+              width: 1,
+              thickness: 1,
+              color: Colors.black12,
+            ),
             Expanded(child: widget.child),
           ],
         ),
@@ -208,7 +215,9 @@ class _Sidebar extends StatelessWidget {
                     item.label,
                     style: TextStyle(
                       color: isSelected ? primaryColor : Colors.black87,
-                      fontWeight: isSelected ? FontWeight.bold : FontWeight.normal,
+                      fontWeight: isSelected
+                          ? FontWeight.bold
+                          : FontWeight.normal,
                     ),
                   ),
                   selected: isSelected,
@@ -223,7 +232,10 @@ class _Sidebar extends StatelessWidget {
             leading: const Icon(Icons.logout, color: Colors.redAccent),
             title: const Text(
               'Cerrar Sesión',
-              style: TextStyle(color: Colors.redAccent, fontWeight: FontWeight.bold),
+              style: TextStyle(
+                color: Colors.redAccent,
+                fontWeight: FontWeight.bold,
+              ),
             ),
             onTap: onLogout,
           ),

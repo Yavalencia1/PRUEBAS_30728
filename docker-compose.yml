@@ -22,12 +22,13 @@ services:
       context: ./backend
       dockerfile: Dockerfile
     container_name: routekids-api
-    depends_on:
-      - db
     environment:
       DATABASE_URL: postgresql+asyncpg://postgres:admin@db:5432/routekids
       APP_ENV: development
       APP_DEBUG: "true"
+      SECRET_KEY: JADE2307
+    depends_on:
+      - db
     ports:
       - "8000:8000"
 

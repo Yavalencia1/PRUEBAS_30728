@@ -6,6 +6,9 @@ import 'package:frontend/presentation/layouts/main_layout.dart';
 import 'package:frontend/presentation/screens/dashboard/dashboard_screen.dart';
 import 'package:frontend/presentation/screens/ruta/mi_ruta_screen.dart';
 import 'package:frontend/presentation/screens/mapa/mapa_screen.dart';
+import 'package:frontend/presentation/screens/asistencia/asistencia_screen.dart';
+import 'package:frontend/presentation/screens/notificaciones/notificaciones_screen.dart';
+import 'package:frontend/vista/pagos_screen.dart';
 
 void main() {
   runApp(const ProviderScope(child: RouteKidsApp()));
@@ -102,10 +105,7 @@ class _LoginPageState extends State<LoginPage> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(
-        title: const Text('RouteKids - Login'),
-        centerTitle: true,
-      ),
+      appBar: AppBar(title: const Text('RouteKids - Login'), centerTitle: true),
       body: Center(
         child: ConstrainedBox(
           constraints: const BoxConstraints(maxWidth: 400),
@@ -230,7 +230,9 @@ class _RegisterPageState extends State<RegisterPage> {
         if (data['ok'] == true) {
           if (mounted) {
             ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(content: Text('¡Registro exitoso! Inicia sesión.')),
+              const SnackBar(
+                content: Text('¡Registro exitoso! Inicia sesión.'),
+              ),
             );
             Navigator.of(context).pop();
           }
@@ -330,7 +332,9 @@ class _RegisterPageState extends State<RegisterPage> {
                     items: const [
                       DropdownMenuItem(value: 'padre', child: Text('Padre')),
                       DropdownMenuItem(
-                          value: 'conductor', child: Text('Conductor')),
+                        value: 'conductor',
+                        child: Text('Conductor'),
+                      ),
                       DropdownMenuItem(value: 'dueno', child: Text('Dueño')),
                       DropdownMenuItem(value: 'admin', child: Text('Admin')),
                     ],
@@ -374,11 +378,7 @@ class HomePage extends StatefulWidget {
   final String accessToken;
   final Map<String, dynamic> usuario;
 
-  const HomePage({
-    super.key,
-    required this.accessToken,
-    required this.usuario,
-  });
+  const HomePage({super.key, required this.accessToken, required this.usuario});
 
   @override
   State<HomePage> createState() => _HomePageState();
@@ -390,34 +390,112 @@ class _HomePageState extends State<HomePage> {
   @override
   Widget build(BuildContext context) {
     final String rol = widget.usuario['rol'] ?? 'padre';
-    
+
     // Decidimos qué pantalla mostrar en base al índice del menú
     Widget getBody() {
       switch (rol.toLowerCase()) {
         case 'dueno':
           switch (_currentIndex) {
-            case 0: return const DashboardScreen();
-            case 1: return const Center(child: Text('Pantalla de Recorridos en construcción', style: TextStyle(fontSize: 20)));
-            case 2: return const Center(child: Text('Pantalla de Alumnos en construcción', style: TextStyle(fontSize: 20)));
-            case 3: return const Center(child: Text('Pantalla de Pagos en construcción', style: TextStyle(fontSize: 20)));
-            case 4: return const Center(child: Text('Perfil de Dueño', style: TextStyle(fontSize: 20)));
-            default: return const DashboardScreen();
+            case 0:
+              return const DashboardScreen();
+            case 1:
+              return const Center(
+                child: Text(
+                  'Pantalla de Recorridos en construcción',
+                  style: TextStyle(fontSize: 20),
+                ),
+              );
+            case 2:
+              return const Center(
+                child: Text(
+                  'Pantalla de Alumnos en construcción',
+                  style: TextStyle(fontSize: 20),
+                ),
+              );
+            case 3:
+              return PagosScreen(
+                accessToken: widget.accessToken,
+                usuario: widget.usuario,
+              );
+            case 4:
+              return const Center(
+                child: Text('Perfil de Dueño', style: TextStyle(fontSize: 20)),
+              );
+            default:
+              return const DashboardScreen();
           }
         case 'conductor':
           switch (_currentIndex) {
-            case 0: return const MiRutaScreen();
-            case 1: return const Center(child: Text('Pantalla de Asistencia en construcción', style: TextStyle(fontSize: 20)));
-            case 2: return const Center(child: Text('Perfil del Conductor', style: TextStyle(fontSize: 20)));
-            default: return const MiRutaScreen();
+            case 0:
+              return MiRutaScreen(
+                accessToken: widget.accessToken,
+                usuario: widget.usuario,
+              );
+            case 1:
+              return AsistenciaScreen(
+                accessToken: widget.accessToken,
+                usuario: widget.usuario,
+              );
+            case 2:
+              return const Center(
+                child: Text(
+                  'Perfil del Conductor',
+                  style: TextStyle(fontSize: 20),
+                ),
+              );
+            default:
+              return MiRutaScreen(
+                accessToken: widget.accessToken,
+                usuario: widget.usuario,
+              );
+          }
+        case 'admin':
+          switch (_currentIndex) {
+            case 0:
+              return const MapaScreen();
+            case 1:
+              return AsistenciaScreen(
+                accessToken: widget.accessToken,
+                usuario: widget.usuario,
+              );
+            case 2:
+              return PagosScreen(
+                accessToken: widget.accessToken,
+                usuario: widget.usuario,
+              );
+            case 3:
+              return const Center(
+                child: Text('Perfil de Admin', style: TextStyle(fontSize: 20)),
+              );
+            default:
+              return const MapaScreen();
           }
         case 'padre':
         default:
           switch (_currentIndex) {
-            case 0: return const MapaScreen();
-            case 1: return const Center(child: Text('Pantalla de Asistencia en construcción', style: TextStyle(fontSize: 20)));
-            case 2: return const Center(child: Text('Pantalla de Pagos en construcción', style: TextStyle(fontSize: 20)));
-            case 3: return const Center(child: Text('Perfil de Padre', style: TextStyle(fontSize: 20)));
-            default: return const MapaScreen();
+            case 0:
+              return const MapaScreen();
+            case 1:
+              return AsistenciaScreen(
+                accessToken: widget.accessToken,
+                usuario: widget.usuario,
+              );
+            case 2:
+              return PagosScreen(
+                accessToken: widget.accessToken,
+                usuario: widget.usuario,
+              );
+            case 3:
+              return NotificacionesScreen(
+                usuario: widget.usuario,
+                accessToken: widget.accessToken,
+              );
+            case 4:
+              return const Center(
+                child: Text('Perfil de Padre', style: TextStyle(fontSize: 20)),
+              );
+            default:
+              return const MapaScreen();
           }
       }
     }
