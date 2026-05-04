@@ -503,82 +503,35 @@ class _AlumnosScreenState extends State<AlumnosScreen> {
                         )
                       : RefreshIndicator(
                           onRefresh: _cargarTodo,
-                          child: ListView.separated(
-                            itemCount: _alumnos.length,
-                            separatorBuilder: (context, index) =>
-                                const SizedBox(height: 12),
-                            itemBuilder: (context, index) {
-                              final alumno = _alumnos[index];
-                              return Card(
-                                elevation: 1,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: ListTile(
-                                  contentPadding: const EdgeInsets.all(16),
-                                  leading: CircleAvatar(
-                                    backgroundColor: Colors.blue.shade100,
-                                    child: const Icon(
-                                      Icons.school,
-                                      color: Color(0xFF534AB7),
-                                    ),
-                                  ),
-                                  title: Text(
-                                    '${alumno.nombre} ${alumno.apellido}',
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  subtitle: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      Padding(
-                                        padding:
-                                            const EdgeInsets.only(top: 6),
-                                        child: Text(
-                                          'Padre: ${alumno.padreNombre ?? alumno.padreId}',
-                                          style: const TextStyle(
-                                            color: Colors.black54,
-                                          ),
-                                        ),
-                                      ),
-                                      Padding(
-                                        padding:
-                                            const EdgeInsets.only(top: 4),
-                                        child: Text(
-                                          'Recorrido: ${alumno.recorridoId}',
-                                          style: const TextStyle(
-                                            color: Colors.black54,
-                                          ),
-                                        ),
-                                      ),
-                                      Padding(
-                                        padding:
-                                            const EdgeInsets.only(top: 4),
-                                        child: Text(
-                                          'Nacimiento: ${_dateFormatter.format(alumno.fechaNacimiento)}',
-                                          style: const TextStyle(
-                                            color: Colors.black54,
-                                          ),
-                                        ),
-                                      ),
-                                      if (alumno.paradaNombre != null)
-                                        Padding(
-                                          padding:
-                                              const EdgeInsets.only(top: 4),
-                                          child: Text(
-                                            'Parada: ${alumno.paradaNombre}',
-                                            style: const TextStyle(
-                                              color: Colors.black54,
-                                            ),
-                                          ),
-                                        ),
+                          child: SingleChildScrollView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: DataTable(
+                                headingRowColor: WidgetStateProperty.resolveWith((states) => Colors.grey.shade200),
+                                dataRowMaxHeight: 65,
+                                columns: const [
+                                  DataColumn(label: Text('ID', style: TextStyle(fontWeight: FontWeight.bold))),
+                                  DataColumn(label: Text('Nombre y Apellido', style: TextStyle(fontWeight: FontWeight.bold))),
+                                  DataColumn(label: Text('Padre', style: TextStyle(fontWeight: FontWeight.bold))),
+                                  DataColumn(label: Text('Recorrido', style: TextStyle(fontWeight: FontWeight.bold))),
+                                  DataColumn(label: Text('Parada', style: TextStyle(fontWeight: FontWeight.bold))),
+                                  DataColumn(label: Text('Nacimiento', style: TextStyle(fontWeight: FontWeight.bold))),
+                                ],
+                                rows: _alumnos.map((alumno) {
+                                  return DataRow(
+                                    cells: [
+                                      DataCell(Text(alumno.id.toString())),
+                                      DataCell(Text('${alumno.nombre} ${alumno.apellido}')),
+                                      DataCell(Text(alumno.padreNombre ?? alumno.padreId.toString())),
+                                      DataCell(Text(alumno.recorridoId.toString())),
+                                      DataCell(Text(alumno.paradaNombre ?? '-')),
+                                      DataCell(Text(_dateFormatter.format(alumno.fechaNacimiento))),
                                     ],
-                                  ),
-                                ),
-                              );
-                            },
+                                  );
+                                }).toList(),
+                              ),
+                            ),
                           ),
                         ),
             ),

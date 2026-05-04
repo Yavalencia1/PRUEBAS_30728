@@ -66,69 +66,38 @@ class _MainLayoutState extends State<MainLayout> {
     final width = MediaQuery.of(context).size.width;
     final items = _getNavItems();
 
-    if (width < 600) {
-      // Mobile Layout
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text('RouteKids'),
-          backgroundColor: _primaryColor,
-          foregroundColor: Colors.white,
-          actions: [
-            IconButton(
-              icon: const Icon(Icons.logout),
-              onPressed: widget.onLogout,
-              tooltip: 'Cerrar Sesión',
-            ),
-          ],
-        ),
-        body: widget.child,
-        bottomNavigationBar: BottomNavigationBar(
-          currentIndex: widget.currentIndex,
-          onTap: widget.onNavigate,
-          selectedItemColor: _primaryColor,
-          unselectedItemColor: Colors.grey,
-          type: BottomNavigationBarType.fixed,
-          selectedFontSize: 12,
-          unselectedFontSize: 12,
-          items: items
-              .map(
-                (item) => BottomNavigationBarItem(
-                  icon: Icon(item.icon),
-                  label: item.label,
+    return Scaffold(
+      appBar: width < 800
+          ? AppBar(
+              title: const Text('RouteKids'),
+              backgroundColor: _primaryColor,
+              foregroundColor: Colors.white,
+              actions: [
+                IconButton(
+                  icon: const Icon(Icons.logout),
+                  onPressed: widget.onLogout,
+                  tooltip: 'Cerrar Sesión',
                 ),
-              )
-              .toList(),
-        ),
-      );
-    } else if (width < 1024) {
-      // Tablet Layout
-      return Scaffold(
-        appBar: AppBar(
-          title: const Text('RouteKids'),
-          backgroundColor: _primaryColor,
-          foregroundColor: Colors.white,
-        ),
-        drawer: Drawer(
-          child: _Sidebar(
-            userName: widget.userName,
-            userRole: widget.userRole,
-            items: items,
-            currentIndex: widget.currentIndex,
-            onNavigate: (index) {
-              Navigator.pop(context); // Close the drawer
-              widget.onNavigate(index);
-            },
-            onLogout: widget.onLogout,
-            primaryColor: _primaryColor,
-          ),
-        ),
-        body: widget.child,
-      );
-    } else {
-      // Desktop Layout
-      return Scaffold(
-        body: Row(
-          children: [
+              ],
+            )
+          : null,
+      body: Row(
+        children: [
+          if (width < 800)
+            NavigationRail(
+              selectedIndex: widget.currentIndex,
+              onDestinationSelected: widget.onNavigate,
+              labelType: NavigationRailLabelType.all,
+              selectedIconTheme: const IconThemeData(color: _primaryColor),
+              selectedLabelTextStyle: const TextStyle(color: _primaryColor, fontWeight: FontWeight.bold),
+              destinations: items
+                  .map((item) => NavigationRailDestination(
+                        icon: Icon(item.icon),
+                        label: Text(item.label, style: const TextStyle(fontSize: 10)),
+                      ))
+                  .toList(),
+            )
+          else
             _Sidebar(
               userName: widget.userName,
               userRole: widget.userRole,
@@ -138,16 +107,11 @@ class _MainLayoutState extends State<MainLayout> {
               onLogout: widget.onLogout,
               primaryColor: _primaryColor,
             ),
-            const VerticalDivider(
-              width: 1,
-              thickness: 1,
-              color: Colors.black12,
-            ),
-            Expanded(child: widget.child),
-          ],
-        ),
-      );
-    }
+          const VerticalDivider(width: 1, thickness: 1, color: Colors.black12),
+          Expanded(child: widget.child),
+        ],
+      ),
+    );
   }
 }
 

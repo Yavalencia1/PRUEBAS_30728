@@ -288,79 +288,38 @@ class _RecorridosScreenState extends State<RecorridosScreen> {
                         )
                       : RefreshIndicator(
                           onRefresh: _cargarRecorridos,
-                          child: ListView.separated(
-                            itemCount: _recorridos.length,
-                            separatorBuilder: (context, index) =>
-                                const SizedBox(height: 12),
-                            itemBuilder: (context, index) {
-                              final recorrido = _recorridos[index];
-                              return Card(
-                                elevation: 1,
-                                shape: RoundedRectangleBorder(
-                                  borderRadius: BorderRadius.circular(12),
-                                ),
-                                child: ListTile(
-                                  contentPadding: const EdgeInsets.all(16),
-                                  leading: CircleAvatar(
-                                    backgroundColor: recorrido.activo
-                                        ? Colors.green.shade100
-                                        : Colors.grey.shade300,
-                                    child: Icon(
-                                      Icons.directions_bus,
-                                      color: recorrido.activo
-                                          ? Colors.green
-                                          : Colors.grey.shade700,
-                                    ),
-                                  ),
-                                  title: Text(
-                                    recorrido.nombre,
-                                    style: const TextStyle(
-                                      fontWeight: FontWeight.w600,
-                                    ),
-                                  ),
-                                  subtitle: Column(
-                                    crossAxisAlignment:
-                                        CrossAxisAlignment.start,
-                                    children: [
-                                      if ((recorrido.descripcion ?? '')
-                                          .trim()
-                                          .isNotEmpty)
-                                        Padding(
-                                          padding:
-                                              const EdgeInsets.only(top: 6),
-                                          child: Text(
-                                            recorrido.descripcion!,
-                                            style: const TextStyle(
-                                              color: Colors.black54,
-                                            ),
-                                          ),
+                          child: SingleChildScrollView(
+                            physics: const AlwaysScrollableScrollPhysics(),
+                            child: SingleChildScrollView(
+                              scrollDirection: Axis.horizontal,
+                              child: DataTable(
+                                headingRowColor: WidgetStateProperty.resolveWith((states) => Colors.grey.shade200),
+                                columns: const [
+                                  DataColumn(label: Text('ID', style: TextStyle(fontWeight: FontWeight.bold))),
+                                  DataColumn(label: Text('Nombre', style: TextStyle(fontWeight: FontWeight.bold))),
+                                  DataColumn(label: Text('Descripción', style: TextStyle(fontWeight: FontWeight.bold))),
+                                  DataColumn(label: Text('Dueño', style: TextStyle(fontWeight: FontWeight.bold))),
+                                  DataColumn(label: Text('Estado', style: TextStyle(fontWeight: FontWeight.bold))),
+                                ],
+                                rows: _recorridos.map((recorrido) {
+                                  return DataRow(
+                                    cells: [
+                                      DataCell(Text(recorrido.id.toString())),
+                                      DataCell(Text(recorrido.nombre)),
+                                      DataCell(Text(recorrido.descripcion ?? '-')),
+                                      DataCell(Text(recorrido.duenoNombre ?? recorrido.duenoId.toString())),
+                                      DataCell(
+                                        Chip(
+                                          label: Text(recorrido.activo ? 'Activo' : 'Inactivo', style: const TextStyle(fontSize: 12)),
+                                          backgroundColor: recorrido.activo ? Colors.green.shade50 : Colors.grey.shade200,
+                                          padding: EdgeInsets.zero,
                                         ),
-                                      if (recorrido.duenoNombre != null)
-                                        Padding(
-                                          padding:
-                                              const EdgeInsets.only(top: 6),
-                                          child: Text(
-                                            'Dueno: ${recorrido.duenoNombre}',
-                                            style: const TextStyle(
-                                              color: Colors.black54,
-                                            ),
-                                          ),
-                                        ),
+                                      ),
                                     ],
-                                  ),
-                                  trailing: Chip(
-                                    label: Text(
-                                      recorrido.activo
-                                          ? 'Activo'
-                                          : 'Inactivo',
-                                    ),
-                                    backgroundColor: recorrido.activo
-                                        ? Colors.green.shade50
-                                        : Colors.grey.shade200,
-                                  ),
-                                ),
-                              );
-                            },
+                                  );
+                                }).toList(),
+                              ),
+                            ),
                           ),
                         ),
             ),
