@@ -1,7 +1,8 @@
 # c:\Users\Anahi\PRUEBAS_30728\backend\app\routers\auth.py
-from datetime import timedelta
+from datetime import timedelta, datetime
+from typing import Dict, Any
 
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, status, Header
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -22,6 +23,32 @@ from app.schemas.auth import AuthMeResponse, LoginRequest, RefreshTokenRequest, 
 
 router = APIRouter(tags=["Auth"])
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.api_v1_prefix}/auth/login")
+
+# In-memory rate limiting dictionary
+login_attempts: Dict[str, Dict[str, Any]] = {}
+
+def check_login_attempts(email: str):
+    now = datetime.now()
+    attempt = login_attempts.get(email)
+    if attempt and attempt["blocked_until"] and now < attempt["blocked_until"]:
+        raise HTTPException(status_code=status.HTTP_429_TOO_MANY_REQUESTS, detail="Demasiados intentos. Espera 15 minutos")
+
+def record_login_attempt(email: str, success: bool):
+    now = datetime.now()
+    if success:
+        if email in login_attempts:
+            del login_attempts[email]
+        return
+        
+    attempt = login_attempts.get(email, {"count": 0, "blocked_until": None})
+    if attempt["blocked_until"] and now < attempt["blocked_until"]:
+        return
+        
+    attempt["count"] += 1
+    if attempt["count"] >= 5:
+        attempt["blocked_until"] = now + timedelta(minutes=15)
+        
+    login_attempts[email] = attempt
 
 
 def _respuesta_estandarizada(datos: object, mensaje: str) -> dict:
@@ -54,8 +81,13 @@ async def obtener_usuario_actual(
 @router.post("/registro", response_model=dict)
 async def registrar_usuario(
     datos: RegistroRequest,
+    x_admin_secret: str | None = Header(default=None, alias="X-Admin-Secret"),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
+    if datos.rol.lower() == "admin":
+        if x_admin_secret != settings.secret_key: # Usando secret_key o alguna otra para simplificar
+            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Secret de admin inválido")
+
     try:
         rol_usuario = RolUsuario(datos.rol.lower())
     except ValueError as error:
@@ -75,7 +107,7 @@ async def registrar_usuario(
         await db.commit()
     except IntegrityError as error:
         await db.rollback()
-        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="El email ya está registrado") from error
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Este correo ya está registrado") from error
 
     await db.refresh(usuario)
     return _respuesta_estandarizada(
@@ -89,10 +121,16 @@ async def iniciar_sesion(
     datos: LoginRequest,
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    resultado = await db.execute(select(Usuario).where(Usuario.email == datos.email.lower()))
+    email_lower = datos.email.lower()
+    check_login_attempts(email_lower)
+
+    resultado = await db.execute(select(Usuario).where(Usuario.email == email_lower))
     usuario = resultado.scalar_one_or_none()
     if usuario is None or not verificar_contraseña(datos.password, usuario.password_hash):
+        record_login_attempt(email_lower, success=False)
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Credenciales inválidas")
+
+    record_login_attempt(email_lower, success=True)
 
     access_token = crear_token_acceso(
         subject=usuario.email,
