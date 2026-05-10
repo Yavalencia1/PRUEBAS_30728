@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_map/flutter_map.dart';
 import 'package:latlong2/latlong.dart';
 import 'package:web_socket_channel/web_socket_channel.dart';
+import 'package:frontend/core/config/api_config.dart';
 import 'package:http/http.dart' as http;
 
 // --------------------------------------------------------
@@ -94,7 +95,7 @@ class MapaController extends StateNotifier<MapaState> {
       // Intentamos verificar si hay una sesión activa
       // Endpoint que devuelve la sesión visible para el usuario actual
       final response = await http.get(
-        Uri.parse('http://localhost:8000/api/v1/sesiones/activa-para-usuario'),
+        Uri.parse('${ApiConfig.baseUrl}/api/v1/sesiones/activa-para-usuario'),
         headers: {'Authorization': 'Bearer $accessToken'},
       ).timeout(const Duration(seconds: 3));
 
@@ -135,7 +136,7 @@ class MapaController extends StateNotifier<MapaState> {
     }
     try {
       final response = await http.get(
-        Uri.parse('http://localhost:8000/api/v1/paradas/por-sesion/$sessionId'),
+        Uri.parse('${ApiConfig.baseUrl}/api/v1/paradas/por-sesion/$sessionId'),
         headers: {'Authorization': 'Bearer $accessToken'},
       ).timeout(const Duration(seconds: 4));
 

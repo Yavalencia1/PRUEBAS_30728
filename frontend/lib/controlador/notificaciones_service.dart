@@ -1,9 +1,10 @@
 import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:frontend/core/config/api_config.dart';
 import 'package:http/http.dart' as http;
 
-const String _baseUrl = 'http://localhost:8000/api/v1';
+String get _baseUrl => '${ApiConfig.baseUrl}/api/v1';
 
 Future<List<Map<String, dynamic>>> fetchNotificaciones(String token) async {
   final response = await http.get(

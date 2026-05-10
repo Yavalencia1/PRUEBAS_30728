@@ -18,7 +18,7 @@ Este rol gestiona recorridos, rutas, paradas, sesiones y puede ver información 
 
 *   **Nombre:** Carlos
 *   **Apellido:** Mendoza
-*   **Correo:** carlos.dueno@routekids.com
+*   **Correo:** carlos.dueno@routekids.com carlosmendoza1@gmail.com
 *   **Teléfono:** 0987654321
 *   **Contraseña:** Dueno.2024!
 *   **Rol:** Dueño

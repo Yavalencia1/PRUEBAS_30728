@@ -3,6 +3,7 @@ import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:frontend/core/utils/validators.dart';
 import 'package:frontend/core/utils/error_messages.dart';
+import 'package:frontend/core/config/api_config.dart';
 
 class RegisterPage extends StatefulWidget {
   const RegisterPage({super.key});
@@ -84,7 +85,7 @@ class _RegisterPageState extends State<RegisterPage> {
 
     try {
       final response = await http.post(
-        Uri.parse('http://127.0.0.1:8000/api/v1/auth/registro'),
+        Uri.parse('${ApiConfig.baseUrl}/api/v1/auth/registro'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'nombre': _nameController.text.trim(),

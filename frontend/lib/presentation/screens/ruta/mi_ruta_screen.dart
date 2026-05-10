@@ -6,6 +6,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:web_socket_channel/web_socket_channel.dart';
 import 'package:frontend/presentation/screens/asistencia/asistencia_screen.dart';
+import 'package:frontend/core/config/api_config.dart';
 
 // --------------------------------------------------------
 // Modelos
@@ -128,7 +129,7 @@ class MiRutaController extends StateNotifier<MiRutaState> {
       // Crear sesión en el backend
       final response = await http
           .post(
-            Uri.parse('http://localhost:8000/api/v1/sesiones/'),
+            Uri.parse('${ApiConfig.baseUrl}/api/v1/sesiones/'),
             headers: {
               'Content-Type': 'application/json',
               'Authorization': 'Bearer $accessToken',
@@ -167,7 +168,7 @@ class MiRutaController extends StateNotifier<MiRutaState> {
     try {
       final response = await http
           .get(
-            Uri.parse('http://localhost:8000/api/v1/alumnos/'),
+            Uri.parse('${ApiConfig.baseUrl}/api/v1/alumnos/'),
             headers: {'Authorization': 'Bearer $accessToken'},
           )
           .timeout(const Duration(seconds: 5));
@@ -199,7 +200,7 @@ class MiRutaController extends StateNotifier<MiRutaState> {
         await http
             .patch(
               Uri.parse(
-                'http://localhost:8000/api/v1/sesiones/${state.sessionId}/terminar',
+                '${ApiConfig.baseUrl}/api/v1/sesiones/${state.sessionId}/terminar',
               ),
               headers: {'Authorization': 'Bearer $accessToken'},
             )
@@ -327,7 +328,7 @@ class MiRutaController extends StateNotifier<MiRutaState> {
       final response = await http
           .post(
             Uri.parse(
-              'http://localhost:8000/api/v1/asistencias/subida?sesion_id=${state.sessionId}&alumno_id=$alumnoId',
+              '${ApiConfig.baseUrl}/api/v1/asistencias/subida?sesion_id=${state.sessionId}&alumno_id=$alumnoId',
             ),
             headers: {'Authorization': 'Bearer $accessToken'},
           )
@@ -379,7 +380,7 @@ class MiRutaController extends StateNotifier<MiRutaState> {
       final response = await http
           .post(
             Uri.parse(
-              'http://localhost:8000/api/v1/asistencias/bajada?sesion_id=${state.sessionId}&alumno_id=$alumnoId',
+              '${ApiConfig.baseUrl}/api/v1/asistencias/bajada?sesion_id=${state.sessionId}&alumno_id=$alumnoId',
             ),
             headers: {'Authorization': 'Bearer $accessToken'},
           )

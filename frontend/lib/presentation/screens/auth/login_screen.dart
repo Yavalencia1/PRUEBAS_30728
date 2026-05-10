@@ -5,6 +5,7 @@ import 'package:frontend/main.dart'; // Para navegar a HomePage
 import 'package:frontend/presentation/screens/auth/register_screen.dart';
 import 'package:frontend/core/utils/validators.dart';
 import 'package:frontend/core/utils/error_messages.dart';
+import 'package:frontend/core/config/api_config.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -41,7 +42,7 @@ class _LoginPageState extends State<LoginPage> {
 
     try {
       final response = await http.post(
-        Uri.parse('http://127.0.0.1:8000/api/v1/auth/login'),
+        Uri.parse('${ApiConfig.baseUrl}/api/v1/auth/login'),
         headers: {'Content-Type': 'application/json'},
         body: jsonEncode({
           'email': _emailController.text.trim().toLowerCase(),

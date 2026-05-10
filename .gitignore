@@ -28,3 +28,6 @@ build/
 
 # macOS
 .DS_Store
+
+# Base de datos local
+postgres_data/

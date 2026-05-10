@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:frontend/core/config/api_config.dart';
 import 'package:http/http.dart' as http;
 
 class ParadaItem {
@@ -66,7 +67,7 @@ class ParadasScreen extends StatefulWidget {
 }
 
 class _ParadasScreenState extends State<ParadasScreen> {
-  static const _baseUrl = 'http://localhost:8000/api/v1';
+  static String get _baseUrl => '${ApiConfig.baseUrl}/api/v1';
 
   bool _isLoading = true;
   String? _errorMessage;
@@ -143,7 +144,7 @@ class _ParadasScreenState extends State<ParadasScreen> {
     try {
       final response = await http
           .post(
-            Uri.parse('$_baseUrl/paradas'),
+            Uri.parse('$_baseUrl/paradas/'),
             headers: {
               'Content-Type': 'application/json',
               'Authorization': 'Bearer ${widget.accessToken}',

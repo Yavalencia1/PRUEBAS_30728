@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
+import 'package:frontend/core/config/api_config.dart';
 
 class AsistenciaAlumnoHistorial {
   final int? id;
@@ -143,7 +144,7 @@ class AsistenciaController extends StateNotifier<AsistenciaState> {
     try {
       final response = await http
           .get(
-            Uri.parse('http://localhost:8000/api/v1/sesiones/historial'),
+            Uri.parse('${ApiConfig.baseUrl}/api/v1/sesiones/historial'),
             headers: {'Authorization': 'Bearer $accessToken'},
           )
           .timeout(const Duration(seconds: 8));
@@ -194,7 +195,7 @@ class AsistenciaController extends StateNotifier<AsistenciaState> {
     try {
       final response = await http
           .delete(
-            Uri.parse('http://localhost:8000/api/v1/sesiones/$sesionId'),
+            Uri.parse('${ApiConfig.baseUrl}/api/v1/sesiones/$sesionId'),
             headers: {'Authorization': 'Bearer $accessToken'},
           )
           .timeout(const Duration(seconds: 8));

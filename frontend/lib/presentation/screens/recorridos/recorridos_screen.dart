@@ -1,6 +1,7 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:frontend/core/config/api_config.dart';
 import 'package:http/http.dart' as http;
 
 class RecorridoItem {
@@ -52,7 +53,7 @@ class RecorridosScreen extends StatefulWidget {
 }
 
 class _RecorridosScreenState extends State<RecorridosScreen> {
-  static const _baseUrl = 'http://localhost:8000/api/v1';
+  static String get _baseUrl => '${ApiConfig.baseUrl}/api/v1';
 
   bool _isLoading = true;
   String? _errorMessage;
@@ -117,7 +118,7 @@ class _RecorridosScreenState extends State<RecorridosScreen> {
     try {
       final response = await http
           .post(
-            Uri.parse('$_baseUrl/recorridos'),
+            Uri.parse('$_baseUrl/recorridos/'),
             headers: {
               'Content-Type': 'application/json',
               'Authorization': 'Bearer ${widget.accessToken}',

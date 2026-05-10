@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:frontend/modelo/pago_modelo.dart';
+import 'package:frontend/core/config/api_config.dart';
 import 'package:http/http.dart' as http;
 
 final pagosServiceProvider = Provider<PagosService>((ref) {
@@ -45,7 +46,7 @@ class ResumenPagos {
 class PagosService {
   PagosService({http.Client? client}) : _client = client ?? http.Client();
 
-  static const String _baseUrl = 'http://localhost:8000/api/v1';
+  static String get _baseUrl => '${ApiConfig.baseUrl}/api/v1';
   final http.Client _client;
 
   Map<String, String> _headers({String? accessToken}) {

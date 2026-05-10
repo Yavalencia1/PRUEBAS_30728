@@ -3,6 +3,7 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
+import 'package:frontend/core/config/api_config.dart';
 
 class AlumnoItem {
   final int id;
@@ -101,7 +102,7 @@ class AlumnosScreen extends StatefulWidget {
 }
 
 class _AlumnosScreenState extends State<AlumnosScreen> {
-  static const _baseUrl = 'http://localhost:8000/api/v1';
+  static String get _baseUrl => '${ApiConfig.baseUrl}/api/v1';
   final _dateFormatter = DateFormat('yyyy-MM-dd');
 
   bool _isLoading = true;
@@ -222,7 +223,7 @@ class _AlumnosScreenState extends State<AlumnosScreen> {
 
       final response = await http
           .post(
-            Uri.parse('$_baseUrl/alumnos'),
+            Uri.parse('$_baseUrl/alumnos/'),
             headers: {
               'Content-Type': 'application/json',
               'Authorization': 'Bearer ${widget.accessToken}',
