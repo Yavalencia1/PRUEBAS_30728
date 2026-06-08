@@ -54,11 +54,36 @@ class AlumnoRuta {
   }
 }
 
+class RutaOption {
+  final int id;
+  final String nombre;
+  final String? recorridoNombre;
+  final int recorridoId;
+
+  RutaOption({
+    required this.id,
+    required this.nombre,
+    this.recorridoNombre,
+    required this.recorridoId,
+  });
+
+  factory RutaOption.fromJson(Map<String, dynamic> json) {
+    return RutaOption(
+      id: json['id'] as int,
+      nombre: (json['nombre'] as String?) ?? 'Ruta',
+      recorridoNombre: json['recorrido_nombre'] as String?,
+      recorridoId: json['recorrido_id'] as int,
+    );
+  }
+}
+
 class MiRutaState {
   final bool isRouteActive;
   final bool isWsConnected;
   final String? sessionId;
   final List<AlumnoRuta> alumnos;
+  final List<RutaOption> rutas;
+  final int? selectedRutaId;
   final String? error;
   final bool isLoading;
 
@@ -67,6 +92,8 @@ class MiRutaState {
     required this.isWsConnected,
     this.sessionId,
     required this.alumnos,
+    required this.rutas,
+    this.selectedRutaId,
     this.error,
     this.isLoading = false,
   });
@@ -76,6 +103,8 @@ class MiRutaState {
     bool? isWsConnected,
     String? sessionId,
     List<AlumnoRuta>? alumnos,
+    List<RutaOption>? rutas,
+    int? selectedRutaId,
     String? error,
     bool? isLoading,
   }) {
@@ -84,6 +113,8 @@ class MiRutaState {
       isWsConnected: isWsConnected ?? this.isWsConnected,
       sessionId: sessionId ?? this.sessionId,
       alumnos: alumnos ?? this.alumnos,
+      rutas: rutas ?? this.rutas,
+      selectedRutaId: selectedRutaId ?? this.selectedRutaId,
       error: error,
       isLoading: isLoading ?? this.isLoading,
     );
@@ -109,9 +140,81 @@ class MiRutaController extends StateNotifier<MiRutaState> {
           isRouteActive: false,
           isWsConnected: false,
           alumnos: [],
+          rutas: [],
           isLoading: false,
         ),
-      );
+      ) {
+    _inicializar();
+  }
+
+  Future<void> _inicializar() async {
+    await checkActiveSession();
+    await loadRoutes();
+  }
+
+  Future<void> checkActiveSession() async {
+    state = state.copyWith(isLoading: true);
+    try {
+      final response = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}/api/v1/sesiones/activa'),
+        headers: {'Authorization': 'Bearer $accessToken'},
+      ).timeout(const Duration(seconds: 5));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['ok'] == true && data['data'] != null) {
+          final sId = data['data']['id'].toString();
+          final recorridoId = data['data']['recorrido_id'] as int?;
+          final rId = data['data']['ruta_id'] as int?;
+
+          // Cargar alumnos de este recorrido específico con su estado de asistencia de sesión
+          await _cargarAlumnos(recorridoId: recorridoId, currentSessionId: sId);
+
+          state = state.copyWith(
+            isRouteActive: true,
+            sessionId: sId,
+            selectedRutaId: rId,
+            isLoading: false,
+          );
+
+          _connectWebSocket(sId);
+          _startGpsSimulation();
+          return;
+        }
+      }
+    } catch (e) {
+      print('Error checking active session: $e');
+    }
+    state = state.copyWith(isLoading: false);
+  }
+
+  Future<void> loadRoutes() async {
+    try {
+      final response = await http.get(
+        Uri.parse('${ApiConfig.baseUrl}/api/v1/rutas'),
+        headers: {'Authorization': 'Bearer $accessToken'},
+      ).timeout(const Duration(seconds: 5));
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        if (data['ok'] == true && data['data'] is List) {
+          final rutas = (data['data'] as List)
+              .map((r) => RutaOption.fromJson(r))
+              .toList();
+          state = state.copyWith(
+            rutas: rutas,
+            selectedRutaId: state.selectedRutaId ?? (rutas.isNotEmpty ? rutas.first.id : null),
+          );
+        }
+      }
+    } catch (e) {
+      print('Error loading routes: $e');
+    }
+  }
+
+  void setSelectedRuta(int? rutaId) {
+    state = state.copyWith(selectedRutaId: rutaId);
+  }
 
   Future<void> toggleRuta() async {
     if (state.isRouteActive) {
@@ -122,6 +225,11 @@ class MiRutaController extends StateNotifier<MiRutaState> {
   }
 
   Future<void> _iniciarRuta() async {
+    if (state.selectedRutaId == null) {
+      state = state.copyWith(error: 'Por favor, selecciona una ruta primero.');
+      return;
+    }
+
     state = state.copyWith(isLoading: true, error: null);
     String? sId;
 
@@ -134,6 +242,9 @@ class MiRutaController extends StateNotifier<MiRutaState> {
               'Content-Type': 'application/json',
               'Authorization': 'Bearer $accessToken',
             },
+            body: jsonEncode({
+              'ruta_id': state.selectedRutaId,
+            }),
           )
           .timeout(const Duration(seconds: 5));
 
@@ -141,9 +252,10 @@ class MiRutaController extends StateNotifier<MiRutaState> {
         final data = jsonDecode(response.body);
         if (data['ok'] == true) {
           sId = data['data']['id'].toString();
+          final recorridoId = data['data']['recorrido_id'] as int?;
 
-          // Cargar alumnos del backend
-          await _cargarAlumnos();
+          // Cargar alumnos de este recorrido específico
+          await _cargarAlumnos(recorridoId: recorridoId, currentSessionId: sId);
 
           state = state.copyWith(
             isRouteActive: true,
@@ -164,11 +276,14 @@ class MiRutaController extends StateNotifier<MiRutaState> {
     }
   }
 
-  Future<void> _cargarAlumnos() async {
+  Future<void> _cargarAlumnos({int? recorridoId, String? currentSessionId}) async {
     try {
+      final url = recorridoId != null 
+          ? '${ApiConfig.baseUrl}/api/v1/alumnos/por-recorrido/$recorridoId'
+          : '${ApiConfig.baseUrl}/api/v1/alumnos/';
       final response = await http
           .get(
-            Uri.parse('${ApiConfig.baseUrl}/api/v1/alumnos/'),
+            Uri.parse(url),
             headers: {'Authorization': 'Bearer $accessToken'},
           )
           .timeout(const Duration(seconds: 5));
@@ -176,15 +291,52 @@ class MiRutaController extends StateNotifier<MiRutaState> {
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         if (data['ok'] == true && data['data'] is List) {
-          final alumnos = (data['data'] as List)
+          var alumnos = (data['data'] as List)
               .map(
                 (a) => AlumnoRuta(
                   id: a['id'].toString(),
-                  nombre: a['nombre'] ?? '',
+                  nombre: '${a['nombre'] ?? ''} ${a['apellido'] ?? ''}'.trim(),
                   parada: a['parada_nombre'] ?? 'Sin parada',
+                  estadoAsistencia: 'pendiente',
                 ),
               )
               .toList();
+
+          // Sincronizar el estado actual de subida/bajada si hay una sesión activa
+          if (currentSessionId != null) {
+            final assistResponse = await http.get(
+              Uri.parse('${ApiConfig.baseUrl}/api/v1/asistencias/sesion/$currentSessionId'),
+              headers: {'Authorization': 'Bearer $accessToken'},
+            ).timeout(const Duration(seconds: 5));
+
+            if (assistResponse.statusCode == 200) {
+              final assistData = jsonDecode(assistResponse.body);
+              if (assistData['ok'] == true && assistData['data'] is List) {
+                final list = assistData['data'] as List;
+                final statusMap = {
+                  for (var item in list)
+                    item['alumno_id'].toString(): item
+                };
+
+                alumnos = alumnos.map((alumno) {
+                  final assist = statusMap[alumno.id];
+                  if (assist != null) {
+                    final isBajado = assist['hora_bajada'] != null;
+                    final isSubido = assist['hora_subida'] != null;
+                    return alumno.copyWith(
+                      estadoAsistencia: isBajado 
+                          ? 'finalizado' 
+                          : (isSubido ? 'en_bus' : 'pendiente'),
+                      horaSubida: assist['hora_subida'] != null ? DateTime.parse(assist['hora_subida'] as String) : null,
+                      horaBajada: assist['hora_bajada'] != null ? DateTime.parse(assist['hora_bajada'] as String) : null,
+                    );
+                  }
+                  return alumno;
+                }).toList();
+              }
+            }
+          }
+
           state = state.copyWith(alumnos: alumnos);
         }
       }
@@ -504,6 +656,72 @@ class MiRutaScreen extends ConsumerWidget {
                       ),
                     ),
                     const SizedBox(height: 24),
+                    if (!state.isRouteActive) ...[
+                      if (state.rutas.isEmpty) ...[
+                        Container(
+                          padding: const EdgeInsets.all(12),
+                          decoration: BoxDecoration(
+                            color: Colors.orange.shade50,
+                            border: Border.all(color: Colors.orange.shade200),
+                            borderRadius: BorderRadius.circular(12),
+                          ),
+                          child: Row(
+                            children: [
+                              Icon(Icons.warning_amber_rounded, color: Colors.orange.shade800),
+                              const SizedBox(width: 8),
+                              const Expanded(
+                                child: Text(
+                                  'No hay rutas creadas en el sistema. Pídele al dueño que registre rutas.',
+                                  style: TextStyle(fontWeight: FontWeight.w500, fontSize: 13, color: Colors.orange),
+                                ),
+                              ),
+                            ],
+                          ),
+                        ),
+                        const SizedBox(height: 16),
+                      ] else ...[
+                        const Align(
+                          alignment: Alignment.centerLeft,
+                          child: Text(
+                            'Selecciona tu Ruta:',
+                            style: TextStyle(
+                              fontSize: 14,
+                              fontWeight: FontWeight.bold,
+                              color: Colors.black54,
+                            ),
+                          ),
+                        ),
+                        const SizedBox(height: 8),
+                        DropdownButtonFormField<int>(
+                          value: state.selectedRutaId,
+                          decoration: InputDecoration(
+                            border: OutlineInputBorder(
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            contentPadding: const EdgeInsets.symmetric(
+                              horizontal: 16,
+                              vertical: 12,
+                            ),
+                            filled: true,
+                            fillColor: Colors.white,
+                          ),
+                          items: state.rutas.map((ruta) {
+                            return DropdownMenuItem<int>(
+                              value: ruta.id,
+                              child: Text(
+                                ruta.recorridoNombre != null
+                                    ? '${ruta.nombre} (${ruta.recorridoNombre})'
+                                    : ruta.nombre,
+                              ),
+                            );
+                          }).toList(),
+                          onChanged: (value) {
+                            controller.setSelectedRuta(value);
+                          },
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+                    ],
                     SizedBox(
                       width: double.infinity,
                       height: 60,
@@ -538,7 +756,7 @@ class MiRutaScreen extends ConsumerWidget {
                                 final estabaActiva = state.isRouteActive;
                                 await controller.toggleRuta();
                                 if (estabaActiva &&
-                                    !controller.state.isRouteActive) {
+                                    !ref.read(miRutaProvider(accessToken)).isRouteActive) {
                                   ref
                                       .read(
                                         asistenciaRefreshTriggerProvider

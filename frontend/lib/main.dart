@@ -8,6 +8,7 @@ import 'package:frontend/presentation/screens/recorridos/recorridos_screen.dart'
 import 'package:frontend/presentation/screens/paradas/paradas_screen.dart';
 import 'package:frontend/presentation/screens/alumnos/alumnos_screen.dart';
 import 'package:frontend/presentation/screens/ruta/mi_ruta_screen.dart';
+import 'package:frontend/presentation/screens/ruta/rutas_screen.dart';
 import 'package:frontend/presentation/screens/mapa/mapa_screen.dart';
 import 'package:frontend/presentation/screens/asistencia/asistencia_screen.dart';
 import 'package:frontend/presentation/screens/notificaciones/notificaciones_screen.dart';
@@ -87,21 +88,26 @@ class _HomePageState extends State<HomePage> {
                 usuario: widget.usuario,
               );
             case 2:
-              return ParadasScreen(
+              return RutasScreen(
                 accessToken: widget.accessToken,
                 usuario: widget.usuario,
               );
             case 3:
-              return AlumnosScreen(
+              return ParadasScreen(
                 accessToken: widget.accessToken,
                 usuario: widget.usuario,
               );
             case 4:
-              return PagosScreen(
+              return AlumnosScreen(
                 accessToken: widget.accessToken,
                 usuario: widget.usuario,
               );
             case 5:
+              return PagosScreen(
+                accessToken: widget.accessToken,
+                usuario: widget.usuario,
+              );
+            case 6:
               return const Center(
                 child: Text('Perfil de Dueño', style: TextStyle(fontSize: 20)),
               );

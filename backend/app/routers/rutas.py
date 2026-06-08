@@ -53,7 +53,7 @@ async def listar_rutas(
 	db: AsyncSession = Depends(get_db),
 	usuario: Usuario = Depends(obtener_usuario_actual),
 ) -> dict:
-	if usuario.rol not in (RolUsuario.admin, RolUsuario.dueno):
+	if usuario.rol not in (RolUsuario.admin, RolUsuario.dueno, RolUsuario.conductor):
 		raise HTTPException(
 			status_code=status.HTTP_403_FORBIDDEN,
 			detail="No tienes permisos para listar rutas",

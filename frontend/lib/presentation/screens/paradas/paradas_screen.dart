@@ -1,6 +1,8 @@
 import 'dart:convert';
 
 import 'package:flutter/material.dart';
+import 'package:flutter_map/flutter_map.dart';
+import 'package:latlong2/latlong.dart';
 import 'package:frontend/core/config/api_config.dart';
 import 'package:http/http.dart' as http;
 
@@ -185,11 +187,22 @@ class _ParadasScreenState extends State<ParadasScreen> {
     }
 
     final nombreController = TextEditingController();
-    final latController = TextEditingController();
-    final lngController = TextEditingController();
+    final latController = TextEditingController(text: '-0.180653');
+    final lngController = TextEditingController(text: '-78.467834');
     final ordenController = TextEditingController(text: '0');
     int rutaSeleccionada = _rutas.first.id;
+    LatLng? pinLocation = const LatLng(-0.180653, -78.467834);
     String? errorTexto;
+
+    void updatePinFromText(String latStr, String lngStr, void Function(void Function()) setDialogState) {
+      final lat = double.tryParse(latStr.trim());
+      final lng = double.tryParse(lngStr.trim());
+      if (lat != null && lng != null && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180) {
+        setDialogState(() {
+          pinLocation = LatLng(lat, lng);
+        });
+      }
+    }
 
     final creado = await showDialog<bool>(
           context: context,
@@ -198,75 +211,139 @@ class _ParadasScreenState extends State<ParadasScreen> {
               builder: (context, setDialogState) {
                 return AlertDialog(
                   title: const Text('Nueva parada'),
-                  content: SingleChildScrollView(
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      children: [
-                        DropdownButtonFormField<int>(
-                          value: rutaSeleccionada,
-                          decoration: const InputDecoration(
-                            labelText: 'Ruta',
-                          ),
-                          items: _rutas
-                              .map(
-                                (ruta) => DropdownMenuItem(
-                                  value: ruta.id,
-                                  child: Text(
-                                    ruta.recorridoNombre != null
-                                        ? '${ruta.nombre} (${ruta.recorridoNombre})'
-                                        : ruta.nombre,
+                  content: SizedBox(
+                    width: 500,
+                    child: SingleChildScrollView(
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        children: [
+                          DropdownButtonFormField<int>(
+                            value: rutaSeleccionada,
+                            decoration: const InputDecoration(
+                              labelText: 'Ruta',
+                            ),
+                            items: _rutas
+                                .map(
+                                  (ruta) => DropdownMenuItem(
+                                    value: ruta.id,
+                                    child: Text(
+                                      ruta.recorridoNombre != null
+                                          ? '${ruta.nombre} (${ruta.recorridoNombre})'
+                                          : ruta.nombre,
+                                    ),
                                   ),
+                                )
+                                .toList(),
+                            onChanged: (value) {
+                              if (value == null) return;
+                              setDialogState(() {
+                                rutaSeleccionada = value;
+                              });
+                            },
+                          ),
+                          const SizedBox(height: 12),
+                          TextField(
+                            controller: nombreController,
+                            decoration: const InputDecoration(
+                              labelText: 'Nombre',
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+                          Row(
+                            children: [
+                              Expanded(
+                                child: TextField(
+                                  controller: latController,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Latitud',
+                                  ),
+                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                  onChanged: (val) => updatePinFromText(val, lngController.text, setDialogState),
                                 ),
-                              )
-                              .toList(),
-                          onChanged: (value) {
-                            if (value == null) return;
-                            setDialogState(() {
-                              rutaSeleccionada = value;
-                            });
-                          },
-                        ),
-                        const SizedBox(height: 12),
-                        TextField(
-                          controller: nombreController,
-                          decoration: const InputDecoration(
-                            labelText: 'Nombre',
+                              ),
+                              const SizedBox(width: 16),
+                              Expanded(
+                                child: TextField(
+                                  controller: lngController,
+                                  decoration: const InputDecoration(
+                                    labelText: 'Longitud',
+                                  ),
+                                  keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                                  onChanged: (val) => updatePinFromText(latController.text, val, setDialogState),
+                                ),
+                              ),
+                            ],
                           ),
-                        ),
-                        const SizedBox(height: 12),
-                        TextField(
-                          controller: latController,
-                          decoration: const InputDecoration(
-                            labelText: 'Latitud',
+                          const SizedBox(height: 12),
+                          const Align(
+                            alignment: Alignment.centerLeft,
+                            child: Text(
+                              'Selecciona la ubicación en el mapa:',
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.black54),
+                            ),
                           ),
-                          keyboardType:
-                              const TextInputType.numberWithOptions(decimal: true),
-                        ),
-                        const SizedBox(height: 12),
-                        TextField(
-                          controller: lngController,
-                          decoration: const InputDecoration(
-                            labelText: 'Longitud',
-                          ),
-                          keyboardType:
-                              const TextInputType.numberWithOptions(decimal: true),
-                        ),
-                        const SizedBox(height: 12),
-                        TextField(
-                          controller: ordenController,
-                          decoration: const InputDecoration(
-                            labelText: 'Orden',
-                          ),
-                          keyboardType: TextInputType.number,
-                        ),
-                        if (errorTexto != null) ...[
                           const SizedBox(height: 8),
-                          Text(
-                            errorTexto!,
-                            style: const TextStyle(color: Colors.redAccent),
+                          Container(
+                            height: 220,
+                            decoration: BoxDecoration(
+                              border: Border.all(color: Colors.grey.shade300),
+                              borderRadius: BorderRadius.circular(12),
+                            ),
+                            child: ClipRRect(
+                              borderRadius: BorderRadius.circular(11),
+                              child: FlutterMap(
+                                options: MapOptions(
+                                  initialCenter: pinLocation ?? const LatLng(-0.180653, -78.467834),
+                                  initialZoom: 13.0,
+                                  onTap: (tapPosition, point) {
+                                    setDialogState(() {
+                                      pinLocation = point;
+                                      latController.text = point.latitude.toStringAsFixed(7);
+                                      lngController.text = point.longitude.toStringAsFixed(7);
+                                    });
+                                  },
+                                ),
+                                children: [
+                                  TileLayer(
+                                    urlTemplate: 'https://tile.openstreetmap.org/{z}/{x}/{y}.png',
+                                    userAgentPackageName: 'com.routekids.frontend',
+                                  ),
+                                  if (pinLocation != null)
+                                    MarkerLayer(
+                                      markers: [
+                                        Marker(
+                                          point: pinLocation!,
+                                          width: 40,
+                                          height: 40,
+                                          child: const Icon(
+                                            Icons.location_on,
+                                            color: Colors.red,
+                                            size: 40,
+                                          ),
+                                        ),
+                                      ],
+                                    ),
+                                ],
+                              ),
+                            ),
                           ),
+                          const SizedBox(height: 12),
+                          TextField(
+                            controller: ordenController,
+                            decoration: const InputDecoration(
+                              labelText: 'Orden de la Parada',
+                            ),
+                            keyboardType: TextInputType.number,
+                          ),
+                          if (errorTexto != null) ...[
+                            const SizedBox(height: 8),
+                            Text(
+                              errorTexto!,
+                              style: const TextStyle(color: Colors.redAccent),
+                            ),
+                          ],
                         ],
-                      ],
+                      ),
                     ),
                   ),
                   actions: [
@@ -287,14 +364,26 @@ class _ParadasScreenState extends State<ParadasScreen> {
                         final lng = double.tryParse(lngController.text.trim());
                         if (lat == null || lng == null) {
                           setDialogState(() {
-                            errorTexto = 'Latitud y longitud son obligatorias.';
+                            errorTexto = 'Latitud y longitud deben ser números válidos.';
+                          });
+                          return;
+                        }
+                        if (lat < -90 || lat > 90) {
+                          setDialogState(() {
+                            errorTexto = 'La latitud debe estar entre -90 y 90 grados.';
+                          });
+                          return;
+                        }
+                        if (lng < -180 || lng > 180) {
+                          setDialogState(() {
+                            errorTexto = 'La longitud debe estar entre -180 y 180 grados.';
                           });
                           return;
                         }
                         final orden = int.tryParse(ordenController.text.trim());
                         if (orden == null || orden < 0) {
                           setDialogState(() {
-                            errorTexto = 'Orden debe ser un numero >= 0.';
+                            errorTexto = 'Orden debe ser un número entero >= 0.';
                           });
                           return;
                         }

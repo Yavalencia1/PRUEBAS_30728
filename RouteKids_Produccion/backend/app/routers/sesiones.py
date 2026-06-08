@@ -19,6 +19,10 @@ from app.models.usuario import Usuario
 from app.routers.auth import obtener_usuario_actual
 from app.routers.notificaciones import crear_notificacion
 from app.schemas.sesion_ruta import SesionRutaCrear
+from pydantic import BaseModel
+
+class SesionCrearRequest(BaseModel):
+    ruta_id: int | None = None
 
 router = APIRouter(tags=["Sesiones"])
 
@@ -36,6 +40,7 @@ def _serializar_sesion(sesion: SesionRuta) -> dict:
 		"id": sesion.id,
 		"ruta_id": sesion.ruta_id,
 		"ruta_nombre": sesion.ruta.nombre if sesion.ruta else None,
+		"recorrido_id": sesion.ruta.recorrido_id if sesion.ruta else None,
 		"conductor_id": sesion.conductor_id,
 		"conductor_nombre": f"{sesion.conductor.nombre} {sesion.conductor.apellido}" if sesion.conductor else None,
 		"inicio": sesion.inicio,
@@ -158,12 +163,13 @@ async def _notificar_padres_ruta(
 
 @router.post("/", response_model=dict)
 async def crear_sesion(
+	datos: SesionCrearRequest | None = None,
 	db: AsyncSession = Depends(get_db),
 	usuario: Usuario = Depends(obtener_usuario_actual),
 ) -> dict:
 	"""
 	Crea una nueva sesión de ruta. Solo conductores pueden crear sesiones.
-	El conductor debe proporcionar la ruta en headers o se usa su ruta asignada.
+	El conductor puede proporcionar la ruta en el cuerpo JSON, de lo contrario se usa la primera disponible.
 	"""
 	if usuario.rol.value != "conductor":
 		raise HTTPException(
@@ -171,16 +177,23 @@ async def crear_sesion(
 			detail="Solo conductores pueden crear sesiones",
 		)
 	
-	# Por ahora, buscamos la primera ruta disponible del sistema
-	# En producción, el conductor tendrá una ruta asignada
-	resultado = await db.execute(select(Ruta).limit(1))
-	ruta = resultado.scalar_one_or_none()
-	
-	if ruta is None:
-		raise HTTPException(
-			status_code=status.HTTP_404_NOT_FOUND,
-			detail="No hay rutas disponibles en el sistema",
-		)
+	ruta_id = datos.ruta_id if datos else None
+	if ruta_id is not None:
+		resultado = await db.execute(select(Ruta).where(Ruta.id == ruta_id))
+		ruta = resultado.scalar_one_or_none()
+		if ruta is None:
+			raise HTTPException(
+				status_code=status.HTTP_404_NOT_FOUND,
+				detail=f"La ruta con ID {ruta_id} no fue encontrada",
+			)
+	else:
+		resultado = await db.execute(select(Ruta).limit(1))
+		ruta = resultado.scalar_one_or_none()
+		if ruta is None:
+			raise HTTPException(
+				status_code=status.HTTP_404_NOT_FOUND,
+				detail="No hay rutas disponibles en el sistema",
+			)
 	
 	# Verificar que no exista una sesión activa para este conductor
 	resultado_activa = await db.execute(

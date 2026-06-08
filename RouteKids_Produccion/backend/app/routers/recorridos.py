@@ -8,6 +8,7 @@ from sqlalchemy.orm import selectinload
 
 from app.core.database import get_db
 from app.models.recorrido import Recorrido
+from app.models.ruta import Ruta, TipoRuta
 from app.models.usuario import RolUsuario, Usuario
 from app.routers.auth import obtener_usuario_actual
 from app.schemas.recorrido import RecorridoCrear
@@ -125,6 +126,15 @@ async def crear_recorrido(
 
 	db.add(recorrido)
 	try:
+		await db.flush()
+		# Crear automáticamente una ruta predeterminada
+		default_ruta = Ruta(
+			recorrido_id=recorrido.id,
+			nombre=f"Ruta - {recorrido.nombre}",
+			descripcion=f"Ruta predeterminada para el recorrido {recorrido.nombre}",
+			tipo=TipoRuta.ida_vuelta,
+		)
+		db.add(default_ruta)
 		await db.commit()
 	except IntegrityError as error:
 		await db.rollback()

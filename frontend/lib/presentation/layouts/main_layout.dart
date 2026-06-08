@@ -38,6 +38,7 @@ class _MainLayoutState extends State<MainLayout> {
         return [
           NavItem('Dashboard', Icons.dashboard),
           NavItem('Recorridos', Icons.directions_bus),
+          NavItem('Rutas', Icons.map),
           NavItem('Paradas', Icons.location_on),
           NavItem('Alumnos', Icons.school),
           NavItem('Pagos', Icons.payment),
