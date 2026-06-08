@@ -9,8 +9,12 @@ set DIST_DIR=RouteKids_Produccion
 if not exist "%DIST_DIR%" mkdir "%DIST_DIR%"
 
 echo.
-echo Copiando aplicacion de escritorio (Frontend)...
-xcopy /E /I /Y "frontend\build\windows\x64\runner\Release\*" "%DIST_DIR%\" >nul
+echo Compilando aplicacion web (Frontend React)...
+cd frontend
+call npm run build
+cd ..
+if not exist "%DIST_DIR%\frontend" mkdir "%DIST_DIR%\frontend"
+xcopy /E /I /Y "frontend\dist\*" "%DIST_DIR%\frontend\" >nul
 
 echo.
 echo Copiando servidor (Backend) y Docker...

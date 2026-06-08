@@ -16,15 +16,18 @@ if errorlevel 1 (
 )
 
 echo.
-echo Base de datos y API en linea.
-echo ========================================================
-echo Abriendo la aplicacion RouteKids...
+echo Iniciando servidor web para el Frontend...
 echo ========================================================
 
-:: Lanza el ejecutable de Flutter si existe. Si estás en modo desarrollo, no hará nada.
-if exist "frontend.exe" (
-    start "" "frontend.exe"
+:: Inicia el servidor de desarrollo en modo desarrollo (si existe package.json) o el servidor estático en producción
+if exist "frontend\package.json" (
+    start "RouteKids Frontend (Dev)" cmd /k "cd frontend && npm run dev"
 ) else (
-    echo [Modo Desarrollo] Backend listo. Ahora puedes ejecutar tu app desde VS Code/Android Studio.
-    pause
+    start "RouteKids Frontend (Prod)" cmd /c "python -m http.server 3000 --directory frontend"
 )
+
+:: Espera 2 segundos y abre la aplicación en el navegador predeterminado
+timeout /t 2 /nobreak >nul
+start http://localhost:3000
+
+
