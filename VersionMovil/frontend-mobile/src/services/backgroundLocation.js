@@ -1,4 +1,4 @@
-﻿/**
+/**
  * backgroundLocation.js — Desarrollador 4 (Voncho)
  * ==================================================
  * Servicio de GPS persistente para RouteKids Mobile.
@@ -18,6 +18,7 @@
 
 import * as Location from 'expo-location';
 import * as TaskManager from 'expo-task-manager';
+import Constants from 'expo-constants';
 import ConductorWebSocket from './websocket';
 
 // Nombre unico de la tarea de fondo registrada con TaskManager
@@ -144,17 +145,22 @@ async function startBackgroundLocation() {
     }
 
     // Iniciar actualizaciones de ubicacion en segundo plano
+    const isExpoGo = Constants.appOwnership === 'expo';
     await Location.startLocationUpdatesAsync(BACKGROUND_LOCATION_TASK, {
       accuracy: Location.Accuracy.High,
       distanceInterval: DISTANCE_INTERVAL,
       timeInterval: TIME_INTERVAL,
       // Android: muestra una notificacion persistente (requerido por el SO)
-      showsBackgroundLocationIndicator: true,
-      foregroundService: {
-        notificationTitle: 'RouteKids — GPS Activo',
-        notificationBody: 'Transmitiendo ubicacion del bus escolar en tiempo real.',
-        notificationColor: '#4F46E5', // Color indigo del tema RouteKids
-      },
+      showsBackgroundLocationIndicator: !isExpoGo,
+      // Expo Go en Android ya no soporta FOREGROUND_SERVICE.
+      // Lo habilitamos solo si estamos en una build compilada (EAS / APK).
+      ...(isExpoGo ? {} : {
+        foregroundService: {
+          notificationTitle: 'RouteKids — GPS Activo',
+          notificationBody: 'Transmitiendo ubicacion del bus escolar en tiempo real.',
+          notificationColor: '#4F46E5', // Color indigo del tema RouteKids
+        }
+      }),
       // iOS: opciones de actividad
       activityType: Location.ActivityType.AutomotiveNavigation,
       pausesUpdatesAutomatically: false,

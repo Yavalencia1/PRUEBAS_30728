@@ -226,3 +226,30 @@ async def crear_alumno(
 		_serializar_alumno(alumno_guardado),
 		"Alumno creado correctamente",
 	)
+
+
+@router.delete("/{id}", response_model=dict)
+async def eliminar_alumno(
+	id: int,
+	db: AsyncSession = Depends(get_db),
+	usuario: Usuario = Depends(obtener_usuario_actual),
+) -> dict:
+	if usuario.rol != RolUsuario.admin:
+		raise HTTPException(
+			status_code=status.HTTP_403_FORBIDDEN,
+			detail="No tienes permisos para eliminar alumnos",
+		)
+
+	alumno = await _obtener_alumno_o_404(db, id)
+
+	try:
+		await db.delete(alumno)
+		await db.commit()
+	except IntegrityError as error:
+		await db.rollback()
+		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No se pudo eliminar el alumno por dependencias existentes") from error
+	except Exception as error:
+		await db.rollback()
+		raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error interno al eliminar el alumno") from error
+
+	return _respuesta_estandarizada(None, "Alumno eliminado correctamente")

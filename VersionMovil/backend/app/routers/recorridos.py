@@ -9,6 +9,7 @@ from sqlalchemy.orm import selectinload
 from app.core.database import get_db
 from app.models.recorrido import Recorrido
 from app.models.ruta import Ruta, TipoRuta
+from app.models.parada import Parada
 from app.models.usuario import RolUsuario, Usuario
 from app.routers.auth import obtener_usuario_actual
 from app.schemas.recorrido import RecorridoCrear
@@ -148,3 +149,47 @@ async def crear_recorrido(
 		_serializar_recorrido(recorrido_guardado),
 		"Recorrido creado correctamente",
 	)
+
+
+@router.delete("/{recorrido_id}", response_model=dict)
+async def eliminar_recorrido(
+	recorrido_id: int,
+	db: AsyncSession = Depends(get_db),
+	usuario: Usuario = Depends(obtener_usuario_actual),
+) -> dict:
+	if usuario.rol != RolUsuario.admin:
+		raise HTTPException(
+			status_code=status.HTTP_403_FORBIDDEN,
+			detail="No tienes permisos para eliminar recorridos",
+		)
+
+	recorrido = await _obtener_recorrido_o_404(db, recorrido_id)
+
+	try:
+		# 1. Obtener todas las rutas del recorrido
+		resultado_rutas = await db.execute(select(Ruta).where(Ruta.recorrido_id == recorrido_id))
+		rutas = resultado_rutas.scalars().all()
+		rutas_ids = [ruta.id for ruta in rutas]
+
+		# 2. Si hay rutas, eliminar las paradas asociadas a esas rutas
+		if rutas_ids:
+			resultado_paradas = await db.execute(select(Parada).where(Parada.ruta_id.in_(rutas_ids)))
+			paradas = resultado_paradas.scalars().all()
+			for parada in paradas:
+				await db.delete(parada)
+			
+			# 3. Eliminar las rutas
+			for ruta in rutas:
+				await db.delete(ruta)
+
+		# 4. Finalmente eliminar el recorrido
+		await db.delete(recorrido)
+		await db.commit()
+	except IntegrityError as error:
+		await db.rollback()
+		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No se pudo eliminar el recorrido por dependencias existentes") from error
+	except Exception as error:
+		await db.rollback()
+		raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error interno al eliminar el recorrido") from error
+
+	return _respuesta_estandarizada(None, "Recorrido eliminado correctamente")

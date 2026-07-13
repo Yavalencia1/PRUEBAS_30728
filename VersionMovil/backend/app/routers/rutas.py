@@ -9,6 +9,7 @@ from sqlalchemy.orm import selectinload
 from app.core.database import get_db
 from app.models.recorrido import Recorrido
 from app.models.ruta import Ruta, TipoRuta
+from app.models.parada import Parada
 from app.models.usuario import RolUsuario, Usuario
 from app.routers.auth import obtener_usuario_actual
 from app.schemas.ruta import RutaCrear
@@ -133,3 +134,39 @@ async def crear_ruta(
 
 	ruta_guardada = await _obtener_ruta_o_404(db, ruta.id)
 	return _respuesta_estandarizada(_serializar_ruta(ruta_guardada), "Ruta creada correctamente")
+
+
+@router.delete("/{ruta_id}", response_model=dict)
+async def eliminar_ruta(
+	ruta_id: int,
+	db: AsyncSession = Depends(get_db),
+	usuario: Usuario = Depends(obtener_usuario_actual),
+) -> dict:
+	if usuario.rol != RolUsuario.admin:
+		raise HTTPException(
+			status_code=status.HTTP_403_FORBIDDEN,
+			detail="No tienes permisos para eliminar rutas",
+		)
+
+	ruta = await _obtener_ruta_o_404(db, ruta_id)
+
+	try:
+		# 1. Obtener todas las paradas de la ruta
+		resultado_paradas = await db.execute(select(Parada).where(Parada.ruta_id == ruta_id))
+		paradas = resultado_paradas.scalars().all()
+		
+		# 2. Eliminar paradas
+		for parada in paradas:
+			await db.delete(parada)
+		
+		# 3. Eliminar la ruta
+		await db.delete(ruta)
+		await db.commit()
+	except IntegrityError as error:
+		await db.rollback()
+		raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="No se pudo eliminar la ruta por dependencias existentes") from error
+	except Exception as error:
+		await db.rollback()
+		raise HTTPException(status_code=status.HTTP_500_INTERNAL_SERVER_ERROR, detail="Error interno al eliminar la ruta") from error
+
+	return _respuesta_estandarizada(None, "Ruta eliminada correctamente")

@@ -1,4 +1,4 @@
-﻿/**
+/**
  * websocket.js — Desarrollador 4 (Voncho)
  * =========================================
  * Gestor del canal WebSocket del conductor para RouteKids Mobile.
@@ -15,7 +15,7 @@
 // URL base del servidor WebSocket.
 // IMPORTANTE: En dispositivo fisico usar la IP de la maquina (ej. 192.168.1.X)
 // No usar "localhost" en Expo Go, ya que apunta al telefono, no a la PC.
-const WS_BASE_URL = 'ws://127.0.0.1:8000';
+import { WS_BASE_URL } from '../config';
 
 const RECONNECT_DELAY_MIN = 2000;
 const RECONNECT_DELAY_MAX = 30000;

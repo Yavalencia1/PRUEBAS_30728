@@ -42,68 +42,36 @@ import {
 } from '../services/backgroundLocation';
 
 // ─────────────────────────────────────────────────────────────────────────────
-// NOTA DE INTEGRACION (Dev 4 -> Dev 1):
-// AuthContext es creado por el Desarrollador 1 (Carlos Caiza).
-// Cuando el AuthContext este disponible, reemplazar el mock de abajo con:
-//
-//   import { useAuth } from '../context/AuthContext';
-//   const { usuario, token } = useAuth();
-//
-// El mock temporal devuelve null para que el archivo compile independientemente.
+// INTEGRACION Dev 4 → Dev 1 completada:
+// useAuth viene del AuthContext real (Dev 1 - Carlos Caiza).
+// El token JWT se obtiene de AsyncStorage via AuthContext.
 // ─────────────────────────────────────────────────────────────────────────────
-const useAuth = () => ({ usuario: null, token: null });
+import { useAuth } from '../context/AuthContext';
 
-// URL base de la API REST del backend FastAPI
-// En dispositivo fisico con Expo Go: usar la IP LAN de la PC (ej. 192.168.1.X)
-// En emulador Android: usar 10.0.2.2 en vez de 127.0.0.1
-const API_BASE_URL = 'http://127.0.0.1:8000/api/v1';
+import { api } from '../services/api';
 
 // Coordenadas base del simulador (Quito, Ecuador)
-// Identicas a las usadas en MiRuta.jsx del frontend web para consistencia
 const SIM_LAT_BASE = -0.180653;
 const SIM_LNG_BASE = -78.467834;
 const SIM_INTERVAL_MS = 3000;
 
-// Paleta de colores del tema RouteKids Mobile (dark mode)
+// Paleta de colores del tema RouteKids Mobile (light mode)
 const C = {
-  primary:       '#4F46E5',
-  success:       '#10B981',
-  danger:        '#EF4444',
-  warning:       '#F59E0B',
-  info:          '#3B82F6',
-  bgDark:        '#0F172A',
-  bgCard:        '#1E293B',
-  bgCardLight:   '#334155',
-  textPrimary:   '#F8FAFC',
-  textSecondary: '#94A3B8',
-  textMuted:     '#64748B',
-  border:        '#334155',
-  white:         '#FFFFFF',
+  primary: '#6366f1',
+  success: '#10b981',
+  danger: '#ef4444',
+  warning: '#f59e0b',
+  info: '#3b82f6',
+  bgDark: '#f8f9fa', // Fondo claro
+  bgCard: '#ffffff', // Tarjetas blancas
+  bgCardLight: '#f1f5f9',
+  textPrimary: '#1a202c', // Texto oscuro
+  textSecondary: '#718096',
+  textMuted: '#a0aec0',
+  border: '#e2e8f0',
+  white: '#ffffff',
 };
 
-/**
- * Helper para llamadas HTTP autenticadas a la API REST del backend FastAPI.
- * Replica la logica de fetchApi() del frontend web (api.js) para React Native.
- */
-async function apiCall(endpoint, token, options = {}) {
-  const headers = {
-    'Content-Type': 'application/json',
-    ...(token ? { Authorization: `Bearer ${token}` } : {}),
-    ...(options.headers || {}),
-  };
-  const config = { ...options, headers };
-  if (options.body && typeof options.body === 'object') {
-    config.body = JSON.stringify(options.body);
-  }
-  const response = await fetch(`${API_BASE_URL}${endpoint}`, config);
-  let data;
-  try { data = await response.json(); } catch { data = null; }
-  if (!response.ok) {
-    const msg = data?.detail || data?.mensaje || `Error HTTP ${response.status}`;
-    throw new Error(msg);
-  }
-  return data;
-}
 
 // ─── Componente Principal ─────────────────────────────────────────────────────
 
@@ -163,14 +131,15 @@ export default function ConductorScreen() {
 
   const cargarRutas = async () => {
     try {
-      const r = await apiCall('/rutas', token);
-      if (r?.ok && Array.isArray(r.data)) {
-        setRutas(r.data);
-        if (r.data.length > 0) {
-          setSelectedRutaId(r.data[0].id.toString());
-          const nombre = r.data[0].recorrido_nombre
-            ? `${r.data[0].nombre} (${r.data[0].recorrido_nombre})`
-            : r.data[0].nombre;
+      const r = await api.rutas.list();
+      const dataRutas = (r && r.ok !== false && r.data) ? r.data : (Array.isArray(r) ? r : []);
+      if (Array.isArray(dataRutas)) {
+        setRutas(dataRutas);
+        if (dataRutas.length > 0) {
+          setSelectedRutaId(dataRutas[0].id.toString());
+          const nombre = dataRutas[0].recorrido_nombre
+            ? `${dataRutas[0].nombre} (${dataRutas[0].recorrido_nombre})`
+            : dataRutas[0].nombre;
           setSelectedRutaNombre(nombre);
         }
       }
@@ -182,13 +151,21 @@ export default function ConductorScreen() {
   const verificarSesionActiva = async () => {
     try {
       // Consultar si ya existe una sesion en curso para este conductor
-      const r = await apiCall('/sesiones/activa', token);
-      if (r?.ok && r.data) {
-        const sId = r.data.id.toString();
+      const r = await api.sesiones.getActivaParaUsuario(); // Devuelve las sesiones activas del usuario
+
+      let sessionData = null;
+      if (r && r.ok !== false) {
+        const payload = r.data || r;
+        if (Array.isArray(payload) && payload.length > 0) sessionData = payload[0];
+        else if (payload.id) sessionData = payload;
+      }
+
+      if (sessionData) {
+        const sId = sessionData.id.toString();
         setSessionId(sId);
-        setSelectedRutaId(r.data.ruta_id?.toString());
+        setSelectedRutaId(sessionData.ruta_id?.toString());
         setIsRouteActive(true);
-        await cargarAlumnos(r.data.recorrido_id, sId);
+        await cargarAlumnos(sessionData.recorrido_id, sId);
         conectarWebSocket(sId);
         // Verificar si el GPS ya estaba corriendo en segundo plano
         const gpsRunning = await isBackgroundLocationRunning();
@@ -202,12 +179,16 @@ export default function ConductorScreen() {
 
   const cargarAlumnos = async (recorridoId, sId) => {
     try {
-      const ep = recorridoId
-        ? `/alumnos/por-recorrido/${recorridoId}`
-        : '/alumnos';
-      const r = await apiCall(ep, token);
-      if (r?.ok && Array.isArray(r.data)) {
-        let lista = r.data.map(a => ({
+      let r;
+      if (recorridoId) {
+        r = await api.alumnos.listByRecorrido(recorridoId);
+      } else {
+        r = await api.alumnos.list();
+      }
+      const dataAlumnos = (r && r.ok !== false && r.data) ? r.data : (Array.isArray(r) ? r : []);
+
+      if (Array.isArray(dataAlumnos)) {
+        let lista = dataAlumnos.map(a => ({
           id: a.id.toString(),
           nombre: `${a.nombre} ${a.apellido}`.trim(),
           parada: a.parada_nombre || 'Sin parada asignada',
@@ -219,10 +200,11 @@ export default function ConductorScreen() {
         // Sincronizar estados de asistencia con el backend
         if (sId) {
           try {
-            const ar = await apiCall(`/asistencias/sesion/${sId}`, token);
-            if (ar?.ok && Array.isArray(ar.data)) {
+            const ar = await api.asistencias.listBySesion(sId);
+            const dataAsist = (ar && ar.ok !== false && ar.data) ? ar.data : (Array.isArray(ar) ? ar : []);
+            if (Array.isArray(dataAsist)) {
               const mapa = {};
-              ar.data.forEach(a => { mapa[a.alumno_id.toString()] = a; });
+              dataAsist.forEach(a => { mapa[a.alumno_id.toString()] = a; });
               lista = lista.map(al => {
                 const m = mapa[al.id];
                 if (!m) return al;
@@ -252,7 +234,7 @@ export default function ConductorScreen() {
    */
   const conectarWebSocket = useCallback((sId) => {
     ConductorWebSocket.connect(sId, token, {
-      onOpen:  () => { setIsWsConnected(true);  setError(null); },
+      onOpen: () => { setIsWsConnected(true); setError(null); },
       onClose: () => { setIsWsConnected(false); },
       onError: () => { setIsWsConnected(false); },
     });
@@ -279,7 +261,7 @@ export default function ConductorScreen() {
       Alert.alert(
         'GPS Requerido',
         result.error ||
-          'Activa permisos de ubicacion en Configuracion > Aplicaciones > RouteKids.',
+        'Activa permisos de ubicacion en Configuracion > Aplicaciones > RouteKids.',
         [{ text: 'Entendido' }]
       );
     }
@@ -336,17 +318,15 @@ export default function ConductorScreen() {
     setActionLoading(true);
     setError(null);
     try {
-      // POST /api/v1/sesiones/ - Crea la sesion en el backend
-      const result = await apiCall('/sesiones/', token, {
-        method: 'POST',
-        body: { ruta_id: parseInt(selectedRutaId, 10) },
-      });
-      if (result?.ok && result.data) {
-        const sId = result.data.id.toString();
+      // Usar capa de servicios api.js
+      const result = await api.sesiones.create(parseInt(selectedRutaId, 10));
+      if (result && result.ok !== false) {
+        const dataResult = result.id ? result : (result.data || result); // Handle wrapper if any
+        const sId = dataResult.id.toString();
         setSessionId(sId);
         setIsRouteActive(true);
         Vibration.vibrate(200); // Retroalimentacion haptica al iniciar
-        await cargarAlumnos(result.data.recorrido_id, sId);
+        await cargarAlumnos(dataResult.recorrido_id, sId);
         conectarWebSocket(sId);
         await iniciarGps();
       } else {
@@ -377,8 +357,7 @@ export default function ConductorScreen() {
     if (!sessionId) return;
     setActionLoading(true);
     try {
-      // PATCH /api/v1/sesiones/{id}/terminar - Cierra la sesion
-      await apiCall(`/sesiones/${sessionId}/terminar`, token, { method: 'PATCH' });
+      await api.sesiones.terminar(sessionId);
       Vibration.vibrate([100, 100, 100]); // Triple vibration = exito
       // Detener todos los servicios
       ConductorWebSocket.disconnect();
@@ -401,15 +380,16 @@ export default function ConductorScreen() {
   const handleMarcarSubida = async (alumnoId) => {
     if (!isRouteActive || !sessionId) return;
     try {
-      const ep = `/asistencias/subida?sesion_id=${sessionId}&alumno_id=${alumnoId}`;
-      const r = await apiCall(ep, token, { method: 'POST' });
-      if (r?.ok) {
+      const r = await api.asistencias.marcarSubida(sessionId, alumnoId);
+      if (r && r.ok !== false) {
         Vibration.vibrate(100);
         setAlumnos(prev => prev.map(a =>
           a.id === alumnoId
             ? { ...a, estado: 'en_bus', horaSubida: new Date().toISOString() }
             : a
         ));
+      } else {
+        throw new Error(r?.mensaje || 'Error del servidor');
       }
     } catch (err) {
       Alert.alert('Error', err.message || 'No se pudo registrar la subida.');
@@ -419,15 +399,16 @@ export default function ConductorScreen() {
   const handleMarcarBajada = async (alumnoId) => {
     if (!isRouteActive || !sessionId) return;
     try {
-      const ep = `/asistencias/bajada?sesion_id=${sessionId}&alumno_id=${alumnoId}`;
-      const r = await apiCall(ep, token, { method: 'POST' });
-      if (r?.ok) {
+      const r = await api.asistencias.marcarBajada(sessionId, alumnoId);
+      if (r && r.ok !== false) {
         Vibration.vibrate(100);
         setAlumnos(prev => prev.map(a =>
           a.id === alumnoId
             ? { ...a, estado: 'finalizado', horaBajada: new Date().toISOString() }
             : a
         ));
+      } else {
+        throw new Error(r?.mensaje || 'Error del servidor');
       }
     } catch (err) {
       Alert.alert('Error', err.message || 'No se pudo registrar la bajada.');
@@ -452,7 +433,7 @@ export default function ConductorScreen() {
   if (loading) {
     return (
       <SafeAreaView style={s.loadingContainer}>
-        <StatusBar barStyle="light-content" backgroundColor={C.bgDark} />
+        <StatusBar barStyle="dark-content" backgroundColor={C.bgDark} />
         <ActivityIndicator size="large" color={C.primary} />
         <Text style={s.loadingText}>Cargando panel del conductor...</Text>
       </SafeAreaView>
@@ -463,7 +444,7 @@ export default function ConductorScreen() {
 
   return (
     <SafeAreaView style={s.safeArea}>
-      <StatusBar barStyle="light-content" backgroundColor={C.bgDark} />
+      <StatusBar barStyle="dark-content" backgroundColor={C.bgDark} />
       <ScrollView
         style={s.scrollView}
         contentContainerStyle={s.scrollContent}
@@ -691,94 +672,94 @@ export default function ConductorScreen() {
 
 const s = StyleSheet.create({
   // Contenedores base
-  safeArea:           { flex: 1, backgroundColor: C.bgDark },
-  loadingContainer:   { flex: 1, backgroundColor: C.bgDark, justifyContent: 'center', alignItems: 'center', gap: 16 },
-  loadingText:        { color: C.textSecondary, fontSize: 16 },
-  scrollView:         { flex: 1 },
-  scrollContent:      { padding: 16 },
+  safeArea: { flex: 1, backgroundColor: C.bgDark },
+  loadingContainer: { flex: 1, backgroundColor: C.bgDark, justifyContent: 'center', alignItems: 'center', gap: 16 },
+  loadingText: { color: C.textSecondary, fontSize: 16 },
+  scrollView: { flex: 1 },
+  scrollContent: { padding: 16 },
 
   // Encabezado
-  header:             { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20, paddingTop: Platform.OS === 'android' ? 8 : 0 },
-  headerEmoji:        { fontSize: 36 },
-  headerTitle:        { fontSize: 22, fontWeight: '700', color: C.textPrimary, letterSpacing: 0.3 },
-  headerSubtitle:     { fontSize: 14, color: C.textSecondary, marginTop: 2 },
+  header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20, paddingTop: Platform.OS === 'android' ? 8 : 0 },
+  headerEmoji: { fontSize: 36 },
+  headerTitle: { fontSize: 22, fontWeight: '700', color: C.textPrimary, letterSpacing: 0.3 },
+  headerSubtitle: { fontSize: 14, color: C.textSecondary, marginTop: 2 },
 
   // Tarjeta de control
-  controlCard:        { backgroundColor: C.bgCard, borderRadius: 16, padding: 20, marginBottom: 20, borderWidth: 1, borderColor: C.border, elevation: 6 },
+  controlCard: { backgroundColor: C.bgCard, borderRadius: 16, padding: 20, marginBottom: 20, borderWidth: 1, borderColor: C.border, elevation: 6 },
 
   // Estado activo
-  activeRow:          { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 },
-  activePulse:        { width: 12, height: 12, borderRadius: 6, backgroundColor: C.success, shadowColor: C.success, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.8, shadowRadius: 6 },
-  activeTitle:        { fontSize: 18, fontWeight: '700', color: C.success },
-  rutaNombre:         { fontSize: 14, color: C.textSecondary, marginBottom: 14, marginLeft: 22 },
+  activeRow: { flexDirection: 'row', alignItems: 'center', gap: 10, marginBottom: 4 },
+  activePulse: { width: 12, height: 12, borderRadius: 6, backgroundColor: C.success, shadowColor: C.success, shadowOffset: { width: 0, height: 0 }, shadowOpacity: 0.8, shadowRadius: 6 },
+  activeTitle: { fontSize: 18, fontWeight: '700', color: C.success },
+  rutaNombre: { fontSize: 14, color: C.textSecondary, marginBottom: 14, marginLeft: 22 },
 
   // Badges de estado
-  statusRow:          { flexDirection: 'row', gap: 8, marginBottom: 14, flexWrap: 'wrap' },
-  statusBadge:        { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20, borderWidth: 1, backgroundColor: C.bgCardLight },
-  statusText:         { fontSize: 12, fontWeight: '600' },
+  statusRow: { flexDirection: 'row', gap: 8, marginBottom: 14, flexWrap: 'wrap' },
+  statusBadge: { paddingHorizontal: 10, paddingVertical: 5, borderRadius: 20, borderWidth: 1, backgroundColor: C.bgCardLight },
+  statusText: { fontSize: 12, fontWeight: '600' },
 
   // Coordenadas GPS
-  coordsBox:          { backgroundColor: C.bgCardLight, borderRadius: 8, padding: 10, marginBottom: 12 },
-  coordsText:         { fontSize: 12, color: C.textSecondary, fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace' },
-  simLabel:           { fontSize: 11, color: C.warning, fontWeight: '700', marginTop: 4 },
+  coordsBox: { backgroundColor: C.bgCardLight, borderRadius: 8, padding: 10, marginBottom: 12 },
+  coordsText: { fontSize: 12, color: C.textSecondary, fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace' },
+  simLabel: { fontSize: 11, color: C.warning, fontWeight: '700', marginTop: 4 },
 
   // Simulador
-  simBtn:             { borderWidth: 1, borderColor: C.textMuted, borderRadius: 8, padding: 10, alignItems: 'center', marginBottom: 14 },
-  simBtnActive:       { borderColor: C.warning, backgroundColor: C.warning + '15' },
-  simBtnText:         { fontSize: 13, color: C.textSecondary, fontWeight: '500' },
+  simBtn: { borderWidth: 1, borderColor: C.textMuted, borderRadius: 8, padding: 10, alignItems: 'center', marginBottom: 14 },
+  simBtnActive: { borderColor: C.warning, backgroundColor: C.warning + '15' },
+  simBtnText: { fontSize: 13, color: C.textSecondary, fontWeight: '500' },
 
   // Estado idle (sin ruta)
-  idleEmoji:          { fontSize: 52, textAlign: 'center', marginBottom: 12 },
-  idleTitle:          { fontSize: 20, fontWeight: '700', color: C.textPrimary, textAlign: 'center', marginBottom: 8 },
-  idleSubtitle:       { fontSize: 14, color: C.textSecondary, textAlign: 'center', lineHeight: 20, marginBottom: 20 },
+  idleEmoji: { fontSize: 52, textAlign: 'center', marginBottom: 12 },
+  idleTitle: { fontSize: 20, fontWeight: '700', color: C.textPrimary, textAlign: 'center', marginBottom: 8 },
+  idleSubtitle: { fontSize: 14, color: C.textSecondary, textAlign: 'center', lineHeight: 20, marginBottom: 20 },
 
   // Mensajes de error/warning
-  errorBox:           { backgroundColor: C.danger + '20', borderWidth: 1, borderColor: C.danger + '50', borderRadius: 8, padding: 12, marginBottom: 14 },
-  errorText:          { color: C.danger, fontSize: 14, fontWeight: '500' },
-  warningBox:         { backgroundColor: C.warning + '20', borderWidth: 1, borderColor: C.warning + '50', borderRadius: 8, padding: 14, marginBottom: 14 },
-  warningText:        { color: C.warning, fontSize: 14, lineHeight: 20 },
+  errorBox: { backgroundColor: C.danger + '20', borderWidth: 1, borderColor: C.danger + '50', borderRadius: 8, padding: 12, marginBottom: 14 },
+  errorText: { color: C.danger, fontSize: 14, fontWeight: '500' },
+  warningBox: { backgroundColor: C.warning + '20', borderWidth: 1, borderColor: C.warning + '50', borderRadius: 8, padding: 14, marginBottom: 14 },
+  warningText: { color: C.warning, fontSize: 14, lineHeight: 20 },
 
   // Selector de rutas (chips horizontales)
   rutaSelectorContainer: { marginBottom: 16 },
-  label:              { fontSize: 14, color: C.textSecondary, marginBottom: 8, fontWeight: '500' },
-  rutaChip:           { borderWidth: 1, borderColor: C.border, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, marginRight: 8, minWidth: 120, maxWidth: 180, backgroundColor: C.bgCardLight },
-  rutaChipSelected:   { borderColor: C.primary, backgroundColor: C.primary + '25' },
-  rutaChipText:       { fontSize: 13, color: C.textSecondary, textAlign: 'center' },
+  label: { fontSize: 14, color: C.textSecondary, marginBottom: 8, fontWeight: '500' },
+  rutaChip: { borderWidth: 1, borderColor: C.border, borderRadius: 10, paddingHorizontal: 14, paddingVertical: 10, marginRight: 8, minWidth: 120, maxWidth: 180, backgroundColor: C.bgCardLight },
+  rutaChipSelected: { borderColor: C.primary, backgroundColor: C.primary + '25' },
+  rutaChipText: { fontSize: 13, color: C.textSecondary, textAlign: 'center' },
   rutaChipTextSelected: { color: C.primary, fontWeight: '600' },
 
   // Botones principales
-  mainBtn:            { borderRadius: 12, paddingVertical: 16, alignItems: 'center', marginTop: 4, elevation: 4 },
-  successBtn:         { backgroundColor: C.success },
-  dangerBtn:          { backgroundColor: C.danger },
-  btnDisabled:        { opacity: 0.5 },
-  mainBtnText:        { color: C.white, fontSize: 16, fontWeight: '700', letterSpacing: 0.5 },
+  mainBtn: { borderRadius: 12, paddingVertical: 16, alignItems: 'center', marginTop: 4, elevation: 4 },
+  successBtn: { backgroundColor: C.success },
+  dangerBtn: { backgroundColor: C.danger },
+  btnDisabled: { opacity: 0.5 },
+  mainBtnText: { color: C.white, fontSize: 16, fontWeight: '700', letterSpacing: 0.5 },
 
   // Seccion de alumnos
-  alumnosSection:     { marginBottom: 8 },
-  sectionTitle:       { fontSize: 18, fontWeight: '700', color: C.textPrimary, marginBottom: 12 },
+  alumnosSection: { marginBottom: 8 },
+  sectionTitle: { fontSize: 18, fontWeight: '700', color: C.textPrimary, marginBottom: 12 },
 
   // Tarjeta de alumno
-  alumnoCard:         { backgroundColor: C.bgCard, borderRadius: 12, padding: 14, marginBottom: 10, borderLeftWidth: 4, borderWidth: 1, borderColor: C.border, elevation: 3 },
-  alumnoInfo:         { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 10 },
-  alumnoAvatar:       { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
-  alumnoAvatarText:   { fontSize: 20, fontWeight: '700' },
-  alumnoMeta:         { flex: 1, gap: 3 },
-  alumnoNombre:       { fontSize: 15, fontWeight: '600', color: C.textPrimary },
-  alumnoTachado:      { textDecorationLine: 'line-through', color: C.textMuted },
-  alumnoParada:       { fontSize: 12, color: C.textSecondary },
-  estadoBadge:        { alignSelf: 'flex-start', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2, marginTop: 2 },
-  estadoBadgeText:    { fontSize: 11, fontWeight: '700', letterSpacing: 0.3 },
-  horaText:           { fontSize: 11, color: C.textMuted, marginTop: 1 },
+  alumnoCard: { backgroundColor: C.bgCard, borderRadius: 12, padding: 14, marginBottom: 10, borderLeftWidth: 4, borderWidth: 1, borderColor: C.border, elevation: 3 },
+  alumnoInfo: { flexDirection: 'row', alignItems: 'flex-start', gap: 12, marginBottom: 10 },
+  alumnoAvatar: { width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center' },
+  alumnoAvatarText: { fontSize: 20, fontWeight: '700' },
+  alumnoMeta: { flex: 1, gap: 3 },
+  alumnoNombre: { fontSize: 15, fontWeight: '600', color: C.textPrimary },
+  alumnoTachado: { textDecorationLine: 'line-through', color: C.textMuted },
+  alumnoParada: { fontSize: 12, color: C.textSecondary },
+  estadoBadge: { alignSelf: 'flex-start', borderRadius: 6, paddingHorizontal: 8, paddingVertical: 2, marginTop: 2 },
+  estadoBadgeText: { fontSize: 11, fontWeight: '700', letterSpacing: 0.3 },
+  horaText: { fontSize: 11, color: C.textMuted, marginTop: 1 },
 
   // Botones de asistencia
-  alumnoActions:      { flexDirection: 'row', gap: 8 },
-  actionBtn:          { flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center' },
-  subidaBtn:          { backgroundColor: C.success + '30', borderWidth: 1, borderColor: C.success + '60' },
-  bajadaBtn:          { backgroundColor: C.info + '30', borderWidth: 1, borderColor: C.info + '60' },
-  actionBtnDisabled:  { opacity: 0.3 },
-  actionBtnText:      { fontSize: 13, fontWeight: '600', color: C.textPrimary },
+  alumnoActions: { flexDirection: 'row', gap: 8 },
+  actionBtn: { flex: 1, paddingVertical: 8, borderRadius: 8, alignItems: 'center' },
+  subidaBtn: { backgroundColor: C.success + '30', borderWidth: 1, borderColor: C.success + '60' },
+  bajadaBtn: { backgroundColor: C.info + '30', borderWidth: 1, borderColor: C.info + '60' },
+  actionBtnDisabled: { opacity: 0.3 },
+  actionBtnText: { fontSize: 13, fontWeight: '600', color: C.textPrimary },
 
   // Tarjeta vacia
-  emptyCard:          { backgroundColor: C.bgCard, borderRadius: 12, padding: 32, alignItems: 'center', borderWidth: 1, borderColor: C.border },
-  emptyText:          { color: C.textMuted, textAlign: 'center', fontSize: 14, lineHeight: 20 },
+  emptyCard: { backgroundColor: C.bgCard, borderRadius: 12, padding: 32, alignItems: 'center', borderWidth: 1, borderColor: C.border },
+  emptyText: { color: C.textMuted, textAlign: 'center', fontSize: 14, lineHeight: 20 },
 });
