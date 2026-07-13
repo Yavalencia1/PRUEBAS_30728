@@ -1,0 +1,33 @@
+{
+  "expo": {
+    "name": "RouteKids",
+    "slug": "routekids",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "scheme": "routekids",
+    "userInterfaceStyle": "light",
+    "splash": {
+      "resizeMode": "contain",
+      "backgroundColor": "#1E88E5"
+    },
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.routekids.app"
+    },
+    "android": {
+      "package": "com.routekids.app",
+      "adaptiveIcon": {
+        "backgroundColor": "#1E88E5"
+      }
+    },
+    "plugins": [
+      "expo-secure-store"
+    ],
+    "extra": {
+      "apiBaseUrl": "http://127.0.0.1:8000"
+    }
+  }
+}
