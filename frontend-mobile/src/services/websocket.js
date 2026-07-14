@@ -5,6 +5,7 @@
  *
  * Conecta con el endpoint del backend FastAPI:
  *   ws://<HOST>/ws/conductor/<sesion_id>?token=<JWT>
+ *   (el prefijo /ws ya viene en WS_BASE_URL; ver config.js)
  *
  * El payload enviado al backend es:
  *   { lat: number, lng: number, timestamp: string (ISO) }
@@ -34,7 +35,7 @@ let _onError = null;
 let _onMessage = null;
 
 function _buildUrl(sesionId, token) {
-  return `${WS_BASE_URL}/ws/conductor/${sesionId}?token=${token}`;
+  return `${WS_BASE_URL}/conductor/${sesionId}?token=${token}`;
 }
 
 function _calcReconnectDelay(attempt) {

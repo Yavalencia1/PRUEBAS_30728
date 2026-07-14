@@ -279,6 +279,7 @@ async def obtener_sesion_activa(
 
 @router.get("/activa-para-usuario", response_model=dict)
 async def obtener_sesion_activa_para_usuario(
+	recorrido_id: int | None = Query(default=None),
 	db: AsyncSession = Depends(get_db),
 	usuario: Usuario = Depends(obtener_usuario_actual),
 ) -> dict:
@@ -304,6 +305,9 @@ async def obtener_sesion_activa_para_usuario(
 			.limit(1)
 		)
 	elif usuario.rol.value == "padre":
+		condiciones = [SesionRuta.estado == EstadoSesionRuta.en_curso]
+		if recorrido_id is not None:
+			condiciones.append(SesionRuta.ruta.has(Ruta.recorrido_id == recorrido_id))
 		rutas_padre = (
 			select(Ruta.id)
 			.join(Recorrido, Ruta.recorrido_id == Recorrido.id)
@@ -311,23 +315,22 @@ async def obtener_sesion_activa_para_usuario(
 			.where(Alumno.padre_id == usuario.id)
 			.distinct()
 		)
+		condiciones.append(SesionRuta.ruta_id.in_(rutas_padre))
 		consulta = (
 			select(SesionRuta)
 			.options(selectinload(SesionRuta.ruta), selectinload(SesionRuta.conductor))
-			.where(
-				and_(
-					SesionRuta.estado == EstadoSesionRuta.en_curso,
-					SesionRuta.ruta_id.in_(rutas_padre),
-				)
-			)
+			.where(and_(*condiciones))
 			.order_by(SesionRuta.inicio.desc())
 			.limit(1)
 		)
 	elif usuario.rol.value in {"admin", "dueno"}:
+		condiciones = [SesionRuta.estado == EstadoSesionRuta.en_curso]
+		if recorrido_id is not None:
+			condiciones.append(SesionRuta.ruta.has(Ruta.recorrido_id == recorrido_id))
 		consulta = (
 			select(SesionRuta)
 			.options(selectinload(SesionRuta.ruta), selectinload(SesionRuta.conductor))
-			.where(SesionRuta.estado == EstadoSesionRuta.en_curso)
+			.where(and_(*condiciones))
 			.order_by(SesionRuta.inicio.desc())
 			.limit(1)
 		)

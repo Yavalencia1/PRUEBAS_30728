@@ -10,6 +10,7 @@ from app.core.database import get_db
 from app.models.recorrido import Recorrido
 from app.models.ruta import Ruta, TipoRuta
 from app.models.parada import Parada
+from app.models.alumno import Alumno
 from app.models.usuario import RolUsuario, Usuario
 from app.routers.auth import obtener_usuario_actual
 from app.schemas.recorrido import RecorridoCrear, RecorridoActualizar
@@ -54,18 +55,23 @@ async def listar_recorridos(
 	db: AsyncSession = Depends(get_db),
 	usuario: Usuario = Depends(obtener_usuario_actual),
 	dueno_id: int | None = Query(default=None),
+	padre_id: int | None = Query(default=None),
 ) -> dict:
-	if usuario.rol not in (RolUsuario.admin, RolUsuario.dueno):
+	if usuario.rol not in (RolUsuario.admin, RolUsuario.dueno, RolUsuario.padre):
 		raise HTTPException(
 			status_code=status.HTTP_403_FORBIDDEN,
 			detail="No tienes permisos para listar recorridos",
 		)
 
 	consulta = select(Recorrido).options(selectinload(Recorrido.dueno))
-	if usuario.rol == RolUsuario.dueno:
+	if usuario.rol == RolUsuario.padre:
+		consulta = consulta.join(Recorrido.alumnos).where(Alumno.padre_id == usuario.id).distinct()
+	elif usuario.rol == RolUsuario.dueno:
 		consulta = consulta.where(Recorrido.dueno_id == usuario.id)
 	elif dueno_id is not None:
 		consulta = consulta.where(Recorrido.dueno_id == dueno_id)
+	elif padre_id is not None:
+		consulta = consulta.join(Recorrido.alumnos).where(Alumno.padre_id == padre_id).distinct()
 
 	consulta = consulta.order_by(Recorrido.creado_en.desc())
 	resultado = await db.execute(consulta)

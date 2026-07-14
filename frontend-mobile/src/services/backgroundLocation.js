@@ -30,6 +30,11 @@ const DISTANCE_INTERVAL = 10; // metros
 // Intervalo de tiempo minimo entre actualizaciones (ms)
 const TIME_INTERVAL = 3000; // 3 segundos
 
+// Suscripcion al watcher de primer plano (fallback cuando el GPS de fondo
+// no esta disponible, p.ej. en Expo Go) y callback para actualizar la UI.
+let _foregroundSub = null;
+let _onUpdate = null;
+
 // ─── Registro de la tarea de fondo ───────────────────────────────────────────
 // IMPORTANTE: Esta definicion DEBE estar en el nivel superior del modulo
 // (fuera de cualquier componente o funcion), para que TaskManager pueda
@@ -48,6 +53,9 @@ TaskManager.defineTask(BACKGROUND_LOCATION_TASK, ({ data, error }) => {
       const { latitude, longitude } = location.coords;
 
       console.log(`[GPS BG] Nueva coordenada: lat=${latitude}, lng=${longitude}`);
+
+      // Actualizar la UI del conductor (si se registro un callback)
+      if (_onUpdate) _onUpdate({ lat: latitude, lng: longitude });
 
       // Enviar via WebSocket al backend
       const sent = ConductorWebSocket.sendLocation(latitude, longitude);
@@ -118,21 +126,23 @@ async function checkLocationPermissions() {
  *
  * @returns {Promise<{success: boolean, error: string|null}>}
  */
-async function startBackgroundLocation() {
+async function startBackgroundLocation(onUpdate = null) {
+  _onUpdate = onUpdate;
   try {
-    // Verificar permisos
+    // Verificar/solicitar permisos (primer plano y, si es posible, segundo plano)
     const permisos = await checkLocationPermissions();
+    if (!permisos.foreground || !permisos.background) {
+      await requestLocationPermissions(); // best-effort: pide fg y luego bg
+    }
 
-    if (!permisos.foreground) {
-      const granted = await requestLocationPermissions();
-      if (!granted) {
-        return {
-          success: false,
-          error:
-            'No se pudieron obtener los permisos de ubicacion necesarios. ' +
-            'Ve a Configuracion > Aplicaciones > RouteKids > Permisos > Ubicacion y selecciona "Siempre".',
-        };
-      }
+    const despues = await checkLocationPermissions();
+    if (!despues.foreground) {
+      return {
+        success: false,
+        error:
+          'No se pudieron obtener los permisos de ubicacion necesarios. ' +
+          'Ve a Configuracion > Aplicaciones > RouteKids > Permisos > Ubicacion y selecciona "Siempre".',
+      };
     }
 
     // Detener tarea previa si ya estaba corriendo
@@ -144,33 +154,77 @@ async function startBackgroundLocation() {
       await Location.stopLocationUpdatesAsync(BACKGROUND_LOCATION_TASK);
     }
 
-    // Iniciar actualizaciones de ubicacion en segundo plano
+    // Intentar ubicacion en segundo plano (requiere build compilada / "Siempre").
+    // En Expo Go el SO lo rechaza -> caemos al watcher de primer plano.
     const isExpoGo = Constants.appOwnership === 'expo';
-    await Location.startLocationUpdatesAsync(BACKGROUND_LOCATION_TASK, {
-      accuracy: Location.Accuracy.High,
-      distanceInterval: DISTANCE_INTERVAL,
-      timeInterval: TIME_INTERVAL,
+    let backgroundActivo = false;
+    try {
+      await Location.startLocationUpdatesAsync(BACKGROUND_LOCATION_TASK, {
+        accuracy: Location.Accuracy.High,
+        distanceInterval: DISTANCE_INTERVAL,
+        timeInterval: TIME_INTERVAL,
       // Android: muestra una notificacion persistente (requerido por el SO)
       showsBackgroundLocationIndicator: !isExpoGo,
-      // Expo Go en Android ya no soporta FOREGROUND_SERVICE.
-      // Lo habilitamos solo si estamos en una build compilada (EAS / APK).
+      // Expo Go en Android no soporta ubicacion en segundo plano (background),
+      // que en Android requiere un foreground service. Lo habilitamos solo
+      // en una build compilada (EAS / APK).
       ...(isExpoGo ? {} : {
-        foregroundService: {
-          notificationTitle: 'RouteKids — GPS Activo',
-          notificationBody: 'Transmitiendo ubicacion del bus escolar en tiempo real.',
-          notificationColor: '#4F46E5', // Color indigo del tema RouteKids
-        }
-      }),
-      // iOS: opciones de actividad
-      activityType: Location.ActivityType.AutomotiveNavigation,
-      pausesUpdatesAutomatically: false,
-    });
+          foregroundService: {
+            notificationTitle: 'RouteKids — GPS Activo',
+            notificationBody: 'Transmitiendo ubicacion del bus escolar en tiempo real.',
+            notificationColor: '#4F46E5', // Color indigo del tema RouteKids
+          }
+        }),
+        // iOS: opciones de actividad
+        activityType: Location.ActivityType.AutomotiveNavigation,
+        pausesUpdatesAutomatically: false,
+      });
+      backgroundActivo = true;
+      console.log('[GPS] Servicio de ubicacion en segundo plano INICIADO.');
+    } catch (err) {
+      console.warn('[GPS] GPS en segundo plano no disponible, usando primer plano:', err.message);
+    }
 
-    console.log('[GPS] Servicio de ubicacion en segundo plano INICIADO.');
-    return { success: true, error: null };
+    // Siempre iniciamos el watcher de primer plano para mover el marcador del
+    // bus en la UI mientras la app esta abierta (funciona tambien en Expo Go).
+    await startForegroundWatcher();
+
+    return { success: true, error: null, background: backgroundActivo };
   } catch (err) {
     console.error('[GPS] Error al iniciar servicio de fondo:', err);
     return { success: false, error: err.message || 'Error desconocido al iniciar GPS.' };
+  }
+}
+
+/**
+ * Watcher de primer plano (fallback). Actualiza la UI y envia la posicion via
+ * WebSocket mientras la aplicacion esta en primer plano. En Expo Go es el unico
+ * mecanismo disponible (el GPS de fondo esta bloqueado por el SO).
+ */
+async function startForegroundWatcher() {
+  if (_foregroundSub) return;
+  _foregroundSub = await Location.watchPositionAsync(
+    {
+      accuracy: Location.Accuracy.High,
+      distanceInterval: DISTANCE_INTERVAL,
+      timeInterval: TIME_INTERVAL,
+    },
+    (loc) => {
+      const { latitude, longitude } = loc.coords;
+      if (_onUpdate) _onUpdate({ lat: latitude, lng: longitude });
+      const sent = ConductorWebSocket.sendLocation(latitude, longitude);
+      if (!sent) {
+        console.warn('[GPS FG] WebSocket no conectado, coordenada no enviada.');
+      }
+    }
+  );
+  console.log('[GPS] Watcher de primer plano INICIADO.');
+}
+
+function stopForegroundWatcher() {
+  if (_foregroundSub) {
+    _foregroundSub.remove();
+    _foregroundSub = null;
   }
 }
 
@@ -191,6 +245,8 @@ async function stopBackgroundLocation() {
     } else {
       console.log('[GPS] El servicio ya estaba detenido.');
     }
+
+    stopForegroundWatcher();
   } catch (err) {
     console.error('[GPS] Error al detener servicio de fondo:', err);
   }

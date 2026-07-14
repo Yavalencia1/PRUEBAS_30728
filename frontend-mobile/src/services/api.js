@@ -197,9 +197,11 @@ export const api = {
 
   // Recorridos
   recorridos: {
-    list: async () => {
+    list: async (params = {}) => {
       try {
-        return extractPayload(await client.get('/recorridos'));
+        const { padreId = null } = params;
+        const query = padreId ? `?padre_id=${padreId}` : '';
+        return extractPayload(await client.get(`/recorridos${query}`));
       } catch (error) {
         return { ok: false, mensaje: error.message };
       }
@@ -424,9 +426,10 @@ export const api = {
         return { ok: false, mensaje: error.message };
       }
     },
-    getActivaParaUsuario: async () => {
+    getActivaParaUsuario: async (recorridoId = null) => {
       try {
-        return extractPayload(await client.get('/sesiones/activa-para-usuario'));
+        const query = recorridoId ? `?recorrido_id=${recorridoId}` : '';
+        return extractPayload(await client.get(`/sesiones/activa-para-usuario${query}`));
       } catch (error) {
         return { ok: false, mensaje: error.message };
       }

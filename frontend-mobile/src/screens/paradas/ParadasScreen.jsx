@@ -5,6 +5,7 @@ import {
   StyleSheet,
   FlatList,
   TouchableOpacity,
+  ScrollView,
   ActivityIndicator,
   Alert,
   Modal,
@@ -13,6 +14,7 @@ import {
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../services/api';
+import MapView, { Marker } from 'react-native-maps';
 
 // Selector nativo sin dependencias externas
 function SimpleSelector({ label, options, selectedValue, onValueChange, disabled }) {
@@ -48,6 +50,74 @@ function SimpleSelector({ label, options, selectedValue, onValueChange, disabled
           </View>
         </TouchableOpacity>
       </Modal>
+    </View>
+  );
+}
+
+// Centro por defecto (Quito), coherente con el frontend web.
+const DEFAULT_REGION = {
+  latitude: -0.180653,
+  longitude: -78.467834,
+  latitudeDelta: 0.02,
+  longitudeDelta: 0.02,
+};
+
+const mapStyles = StyleSheet.create({
+  container: {
+    marginBottom: 12,
+  },
+  map: {
+    height: 240,
+    width: '100%',
+    borderRadius: 8,
+    borderWidth: 1,
+    borderColor: '#e2e8f0',
+  },
+  hint: {
+    fontSize: 11,
+    color: '#718096',
+    marginTop: 4,
+    fontStyle: 'italic',
+  },
+});
+
+// Selector de ubicación interactivo: pin arrastrable + tap en el mapa.
+// Sincroniza en dos sentidos con los inputs de latitud/longitud del formulario.
+function LocationPicker({ latitude, longitude, onChange }) {
+  const lat = parseFloat(latitude);
+  const lng = parseFloat(longitude);
+  const hasCoord = !isNaN(lat) && !isNaN(lng) && lat >= -90 && lat <= 90 && lng >= -180 && lng <= 180;
+
+  const initialRegion = hasCoord
+    ? { latitude: lat, longitude: lng, latitudeDelta: 0.02, longitudeDelta: 0.02 }
+    : DEFAULT_REGION;
+
+  const coordinate = hasCoord
+    ? { latitude: lat, longitude: lng }
+    : { latitude: DEFAULT_REGION.latitude, longitude: DEFAULT_REGION.longitude };
+
+  const handlePick = (e) => {
+    const { latitude: la, longitude: lo } = e.nativeEvent.coordinate;
+    onChange(la, lo);
+  };
+
+  return (
+    <View style={mapStyles.container}>
+      <MapView
+        style={mapStyles.map}
+        initialRegion={initialRegion}
+        onPress={handlePick}
+        scrollEnabled
+        zoomEnabled
+      >
+        <Marker
+          coordinate={coordinate}
+          draggable
+          onDragEnd={handlePick}
+          title="Ubicación de la parada"
+        />
+      </MapView>
+      <Text style={mapStyles.hint}>Toca el mapa o arrastra el pin para ubicar la parada</Text>
     </View>
   );
 }
@@ -391,7 +461,7 @@ export default function ParadasScreen({ rutaId, recorridoId, onRowPress }) {
       {/* Modal de creación */}
       <Modal visible={modalVisible} animationType="slide" transparent onRequestClose={closeModal}>
         <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
+          <ScrollView style={styles.modalContent}>
             <Text style={styles.modalTitle}>Nueva Parada</Text>
 
             <TextInput
@@ -404,6 +474,17 @@ export default function ParadasScreen({ rutaId, recorridoId, onRowPress }) {
             />
 
             <Text style={styles.coordsLabel}>Coordenadas Geográficas</Text>
+            <LocationPicker
+              latitude={newParada.latitud}
+              longitude={newParada.longitud}
+              onChange={(la, lo) =>
+                setNewParada((prev) => ({
+                  ...prev,
+                  latitud: la.toFixed(6),
+                  longitud: lo.toFixed(6),
+                }))
+              }
+            />
             <View style={styles.rowInputs}>
               <TextInput
                 style={[styles.input, { flex: 1 }]}
@@ -464,14 +545,14 @@ export default function ParadasScreen({ rutaId, recorridoId, onRowPress }) {
                 }
               </TouchableOpacity>
             </View>
-          </View>
+          </ScrollView>
         </View>
       </Modal>
 
       {/* Modal de edición */}
       <Modal visible={editModalVisible} animationType="slide" transparent onRequestClose={() => setEditModalVisible(false)}>
         <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
+          <ScrollView style={styles.modalContent}>
             <Text style={styles.modalTitle}>Editar Parada</Text>
 
             <TextInput
@@ -484,6 +565,17 @@ export default function ParadasScreen({ rutaId, recorridoId, onRowPress }) {
             />
 
             <Text style={styles.coordsLabel}>Coordenadas Geográficas</Text>
+            <LocationPicker
+              latitude={editForm.latitud}
+              longitude={editForm.longitud}
+              onChange={(la, lo) =>
+                setEditForm((prev) => ({
+                  ...prev,
+                  latitud: la.toFixed(6),
+                  longitud: lo.toFixed(6),
+                }))
+              }
+            />
             <View style={styles.rowInputs}>
               <TextInput
                 style={[styles.input, { flex: 1 }]}
@@ -535,7 +627,7 @@ export default function ParadasScreen({ rutaId, recorridoId, onRowPress }) {
                 }
               </TouchableOpacity>
             </View>
-          </View>
+          </ScrollView>
         </View>
       </Modal>
     </View>

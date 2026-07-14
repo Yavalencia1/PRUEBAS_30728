@@ -84,17 +84,32 @@ async def listar_paradas(
 	db: AsyncSession = Depends(get_db),
 	usuario: Usuario = Depends(obtener_usuario_actual),
 ) -> dict:
-	if usuario.rol not in (RolUsuario.admin, RolUsuario.dueno):
+	if usuario.rol not in (RolUsuario.admin, RolUsuario.dueno, RolUsuario.padre, RolUsuario.conductor):
 		raise HTTPException(
 			status_code=status.HTTP_403_FORBIDDEN,
 			detail="No tienes permisos para listar paradas",
 		)
 
 	consulta = select(Parada).options(selectinload(Parada.ruta))
-	if usuario.rol == RolUsuario.dueno or recorrido_id is not None:
+	requiere_join = usuario.rol in (RolUsuario.dueno, RolUsuario.padre) or recorrido_id is not None
+	if requiere_join:
 		consulta = consulta.join(Parada.ruta).join(Ruta.recorrido)
 	if usuario.rol == RolUsuario.dueno:
 		consulta = consulta.where(Recorrido.dueno_id == usuario.id)
+	if usuario.rol == RolUsuario.padre:
+		if recorrido_id is None:
+			raise HTTPException(
+				status_code=status.HTTP_400_BAD_REQUEST,
+				detail="Debe indicar un recorrido para listar sus paradas",
+			)
+		consulta = consulta.where(
+			Recorrido.id.in_(
+				select(Recorrido.id)
+				.join(Alumno, Recorrido.id == Alumno.recorrido_id)
+				.where(Alumno.padre_id == usuario.id)
+				.distinct()
+			)
+		)
 	if ruta_id is not None:
 		consulta = consulta.where(Parada.ruta_id == ruta_id)
 	if recorrido_id is not None:

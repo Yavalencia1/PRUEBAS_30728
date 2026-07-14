@@ -27,6 +27,7 @@ export const getRoleMenu = (rol) => {
     dueno: withDefaults([
       { name: 'Dashboard', label: 'Dashboard', icon: 'grid-outline', primary: true },
       { name: 'GestionRutas', label: 'Gestión de Rutas', icon: 'trail-sign-outline', tabContainer: true },
+      { name: 'MapaTracking', label: 'Mapa', icon: 'map-outline', primary: true },
       { name: 'Alumnos', label: 'Alumnos', icon: 'people-outline' },
       { name: 'Pagos', label: 'Pagos', icon: 'card-outline', primary: true },
     ]),

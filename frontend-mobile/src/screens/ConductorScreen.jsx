@@ -31,6 +31,8 @@ import {
   Platform,
   Vibration,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
+import MapView, { Marker } from 'react-native-maps';
 
 // Servicios del Desarrollador 4
 import ConductorWebSocket from '../services/websocket';
@@ -92,6 +94,10 @@ export default function ConductorScreen() {
 
   // Lista de alumnos del recorrido
   const [alumnos, setAlumnos] = useState([]);
+
+  // Paradas de la ruta seleccionada (mapa)
+  const [stops, setStops] = useState([]);
+  const mapRef = useRef(null);
 
   // Estados de UI
   const [loading, setLoading] = useState(true);
@@ -167,6 +173,7 @@ export default function ConductorScreen() {
         setIsRouteActive(true);
         await cargarAlumnos(sessionData.recorrido_id, sId);
         conectarWebSocket(sId);
+        await cargarParadas(sessionData.ruta_id);
         // Verificar si el GPS ya estaba corriendo en segundo plano
         const gpsRunning = await isBackgroundLocationRunning();
         setIsGpsActive(gpsRunning);
@@ -225,6 +232,38 @@ export default function ConductorScreen() {
     }
   };
 
+  // ─── Carga de paradas de la ruta (mapa) ───────────────────────────────────────
+
+  const cargarParadas = async (rutaId) => {
+    if (!rutaId) {
+      setStops([]);
+      return;
+    }
+    try {
+      const r = await api.paradas.list({ rutaId: parseInt(rutaId, 10) });
+      const data = (r && r.ok !== false && r.data) ? r.data : (Array.isArray(r) ? r : []);
+      setStops(Array.isArray(data) ? data : []);
+    } catch (err) {
+      console.error('[Conductor] Error cargando paradas:', err.message);
+      setStops([]);
+    }
+  };
+
+  // Centrar el mapa en la primera parada cuando cargan las paradas (sin bus activo aun)
+  useEffect(() => {
+    if (mapRef.current && stops.length > 0 && !lastCoords) {
+      mapRef.current.animateToRegion(
+        {
+          latitude: parseFloat(stops[0].latitud),
+          longitude: parseFloat(stops[0].longitud),
+          latitudeDelta: 0.02,
+          longitudeDelta: 0.02,
+        },
+        500
+      );
+    }
+  }, [stops]);
+
   // ─── Gestion del WebSocket ────────────────────────────────────────────────────
 
   /**
@@ -248,7 +287,7 @@ export default function ConductorScreen() {
    * captura coordenadas y las envia via ConductorWebSocket.sendLocation().
    */
   const iniciarGps = async () => {
-    const result = await startBackgroundLocation();
+    const result = await startBackgroundLocation((pos) => setLastCoords(pos));
     if (result.success) {
       setIsGpsActive(true);
       // Enviar la posicion inicial de inmediato
@@ -328,6 +367,7 @@ export default function ConductorScreen() {
         Vibration.vibrate(200); // Retroalimentacion haptica al iniciar
         await cargarAlumnos(dataResult.recorrido_id, sId);
         conectarWebSocket(sId);
+        await cargarParadas(selectedRutaId);
         await iniciarGps();
       } else {
         throw new Error(result?.mensaje || 'Error al crear la sesion.');
@@ -367,6 +407,7 @@ export default function ConductorScreen() {
       setIsRouteActive(false);
       setSessionId(null);
       setAlumnos([]);
+      setStops([]);
       setIsWsConnected(false);
     } catch (err) {
       Alert.alert('Error', err.message || 'No se pudo terminar la sesion.');
@@ -428,6 +469,19 @@ export default function ConductorScreen() {
   const getEstadoLabel = (e) =>
     e === 'en_bus' ? 'A bordo' : e === 'finalizado' ? 'Entregado' : 'Pendiente';
 
+  // ─── Mapa: centrar en bus / primera parada ───────────────────────────────────
+
+  const handleCentrarMapa = () => {
+    if (!mapRef.current) return;
+    const primera = stops[0];
+    const target = lastCoords
+      ? { ...lastCoords, latitudeDelta: 0.01, longitudeDelta: 0.01 }
+      : (primera
+          ? { latitude: parseFloat(primera.latitud), longitude: parseFloat(primera.longitud), latitudeDelta: 0.01, longitudeDelta: 0.01 }
+          : null);
+    if (target) mapRef.current.animateToRegion(target, 500);
+  };
+
   // ─── Pantalla de carga ────────────────────────────────────────────────────────
 
   if (loading) {
@@ -460,6 +514,48 @@ export default function ConductorScreen() {
               <Text style={s.headerSubtitle}>{usuario.nombre} {usuario.apellido}</Text>
             )}
           </View>
+        </View>
+
+        {/* ── Mapa del recorrido ── */}
+        <View style={s.mapWrapper}>
+          <MapView
+            ref={mapRef}
+            style={s.map}
+            initialRegion={
+              stops[0]
+                ? {
+                    latitude: parseFloat(stops[0].latitud),
+                    longitude: parseFloat(stops[0].longitud),
+                    latitudeDelta: 0.02,
+                    longitudeDelta: 0.02,
+                  }
+                : { latitude: -0.180653, longitude: -78.467834, latitudeDelta: 0.02, longitudeDelta: 0.02 }
+            }
+            showsUserLocation={false}
+          >
+            {stops.map((p) => (
+              <Marker
+                key={p.id?.toString()}
+                coordinate={{
+                  latitude: parseFloat(p.latitud),
+                  longitude: parseFloat(p.longitud),
+                }}
+                pinColor="#10b981"
+                title={p.nombre}
+              />
+            ))}
+            {lastCoords && (
+              <Marker
+                coordinate={{ latitude: lastCoords.lat, longitude: lastCoords.lng }}
+                pinColor="#6366f1"
+                title="Bus escolar (tu posición)"
+              />
+            )}
+          </MapView>
+          <TouchableOpacity style={s.mapCenterBtn} onPress={handleCentrarMapa}>
+            <Ionicons name="locate-outline" size={18} color="#ffffff" />
+            <Text style={s.mapCenterBtnText}>Centrar en bus</Text>
+          </TouchableOpacity>
         </View>
 
         {/* ── Tarjeta de control principal ── */}
@@ -560,6 +656,7 @@ export default function ConductorScreen() {
                           onPress={() => {
                             setSelectedRutaId(ruta.id.toString());
                             setSelectedRutaNombre(nombre.replace('\n', ' - '));
+                            cargarParadas(ruta.id);
                           }}
                         >
                           <Text
@@ -677,6 +774,24 @@ const s = StyleSheet.create({
   loadingText: { color: C.textSecondary, fontSize: 16 },
   scrollView: { flex: 1 },
   scrollContent: { padding: 16 },
+
+  // Mapa del recorrido
+  mapWrapper: { position: 'relative', marginBottom: 16, borderRadius: 16, overflow: 'hidden' },
+  map: { height: 280, borderRadius: 16 },
+  mapCenterBtn: {
+    position: 'absolute',
+    right: 12,
+    bottom: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: C.primary,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 20,
+    elevation: 4,
+  },
+  mapCenterBtnText: { color: C.white, fontWeight: '600', fontSize: 13 },
 
   // Encabezado
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20, paddingTop: Platform.OS === 'android' ? 8 : 0 },
