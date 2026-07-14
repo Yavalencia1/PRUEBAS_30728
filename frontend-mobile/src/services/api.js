@@ -486,9 +486,23 @@ export const api = {
         return { ok: false, mensaje: error.message };
       }
     },
+    contarSinLeer: async () => {
+      try {
+        return extractPayload(await client.get('/notificaciones/sin-leer'));
+      } catch (error) {
+        return { ok: false, data: { sin_leer: 0 }, mensaje: error.message };
+      }
+    },
     marcarLeida: async (id) => {
       try {
         return extractPayload(await client.post(`/notificaciones/${id}/marcar-leida`));
+      } catch (error) {
+        return { ok: false, mensaje: error.message };
+      }
+    },
+    marcarTodasLeidas: async () => {
+      try {
+        return extractPayload(await client.post('/notificaciones/marcar-todas-leidas'));
       } catch (error) {
         return { ok: false, mensaje: error.message };
       }

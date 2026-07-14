@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback, useLayoutEffect } from 'react';
 import {
   View,
   Text,
@@ -10,17 +10,59 @@ import {
   Alert,
   RefreshControl,
 } from 'react-native';
+import { useNavigation } from '@react-navigation/native';
+import { Ionicons } from '@expo/vector-icons';
 import { api } from '../../services/api';
+import { useNotificationCount } from '../../context/NotificationCountContext';
 
 export default function NotificacionesScreen() {
   const [notifications, setNotifications] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
+  const [markingAll, setMarkingAll] = useState(false);
+  const navigation = useNavigation();
+  const { refresh } = useNotificationCount();
 
   useEffect(() => {
     loadNotifications();
   }, []);
+
+  const handleMarcarTodasLeidas = useCallback(async () => {
+    try {
+      setMarkingAll(true);
+      const result = await api.notificaciones.marcarTodasLeidas();
+      if (result && result.ok === false) {
+        Alert.alert('Error', result.mensaje || 'No se pudieron marcar como leídas');
+        return;
+      }
+      await loadNotifications();
+      if (refresh) await refresh();
+      Alert.alert('Listo', 'Todas las notificaciones han sido marcadas como leídas');
+    } catch (err) {
+      Alert.alert('Error', 'No se pudieron marcar como leídas');
+    } finally {
+      setMarkingAll(false);
+    }
+  }, [refresh]);
+
+  useLayoutEffect(() => {
+    navigation.setOptions({
+      headerRight: () => (
+        <TouchableOpacity
+          onPress={handleMarcarTodasLeidas}
+          disabled={markingAll || notifications.length === 0}
+          style={styles.headerButton}
+        >
+          <Ionicons
+            name="checkmark-done-outline"
+            size={22}
+            color={markingAll || notifications.length === 0 ? '#a0aec0' : '#6366f1'}
+          />
+        </TouchableOpacity>
+      ),
+    });
+  }, [navigation, handleMarcarTodasLeidas, markingAll, notifications.length]);
 
   const loadNotifications = async () => {
     try {
@@ -51,6 +93,7 @@ export default function NotificacionesScreen() {
         return;
       }
       loadNotifications();
+      if (refresh) await refresh();
     } catch (err) {
       Alert.alert('Error', 'No se pudo marcar como leída');
     }
@@ -211,6 +254,10 @@ const styles = StyleSheet.create({
   container: {
     flex: 1,
     backgroundColor: '#f8f9fa',
+  },
+  headerButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 4,
   },
   listContent: {
     paddingHorizontal: 16,

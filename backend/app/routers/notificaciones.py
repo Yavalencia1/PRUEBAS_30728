@@ -85,6 +85,32 @@ async def contar_sin_leer(
 	)
 
 
+@router.post("/marcar-todas-leidas", response_model=dict)
+async def marcar_todas_leidas(
+	db: AsyncSession = Depends(get_db),
+	usuario: Usuario = Depends(obtener_usuario_actual),
+) -> dict:
+	"""
+	Marca todas las notificaciones del usuario logueado como leídas.
+	"""
+	resultado = await db.execute(
+		select(Notificacion).where(
+			and_(
+				Notificacion.usuario_id == usuario.id,
+				Notificacion.leida == False,
+			)
+		)
+	)
+	notificaciones = resultado.scalars().all()
+	for n in notificaciones:
+		n.leida = True
+	await db.commit()
+	return _respuesta_estandarizada(
+		{"actualizadas": len(notificaciones)},
+		f"Se marcaron {len(notificaciones)} notificaciones como leídas",
+	)
+
+
 @router.post("/{notificacion_id}/marcar-leida", response_model=dict)
 async def marcar_leida(
 	notificacion_id: int,

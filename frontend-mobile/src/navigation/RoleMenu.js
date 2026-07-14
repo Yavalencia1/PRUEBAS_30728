@@ -1,82 +1,59 @@
 /**
  * RoleMenu.js
- * Define qué módulos puede ver cada rol en el menú de navegación.
- * Roles soportados: admin | dueno | conductor | padre
+ * Define qué módulos puede ver cada rol en la navegación.
+ * Roles: admin | dueno | conductor | padre
+ *
+ * Cada ítem: { name, label, icon (Ionicons), primary }
+ *  - primary: true  => barra inferior (BottomTabs, máx ~4)
+ *  - primary: false => Drawer (módulos secundarios)
+ * Notificaciones y Perfil se manejan aparte (campana en header y drawer respectivamente).
  */
+
+const withDefaults = (items) =>
+  items.map((i) => ({ primary: false, ...i }));
 
 export const getRoleMenu = (rol) => {
   const roleMenus = {
-    padre: [
-      { name: 'Dashboard',      icon: '📊', color: '#6366f1' },
-      { name: 'MapaTracking',   icon: '🗺️', color: '#06b6d4' },
-      { name: 'Asistencia',     icon: '✅', color: '#10b981' },
-      { name: 'Pagos',          icon: '💳', color: '#f59e0b' },
-      { name: 'Notificaciones', icon: '🔔', color: '#ef4444' },
-      { name: 'Profile',        icon: '👤', color: '#8b5cf6' },
-    ],
-
-    conductor: [
-      { name: 'Dashboard',      icon: '📊', color: '#6366f1' },
-      { name: 'Conductor',      icon: '🚌', color: '#14b8a6' },  // → ConductorScreen (Dev 4)
-      { name: 'Notificaciones', icon: '🔔', color: '#ef4444' },
-      { name: 'Profile',        icon: '👤', color: '#8b5cf6' },
-    ],
-
-    dueno: [
-      { name: 'Dashboard',      icon: '📊', color: '#6366f1' },
-      { name: 'Recorridos',     icon: '🚌', color: '#14b8a6' },
-      { name: 'Rutas',          icon: '🛣️', color: '#3b82f6' },
-      { name: 'Paradas',        icon: '📍', color: '#ec4899' },
-      { name: 'Alumnos',        icon: '👨‍👧‍👦', color: '#f97316' },
-      { name: 'Pagos',          icon: '💳', color: '#f59e0b' },
-      { name: 'Notificaciones', icon: '🔔', color: '#ef4444' },
-      { name: 'Profile',        icon: '👤', color: '#8b5cf6' },
-    ],
-
-    admin: [
-      { name: 'Dashboard',      icon: '📊', color: '#6366f1' },
-      { name: 'Alumnos',        icon: '👨‍👧‍👦', color: '#f97316' },
-      { name: 'Recorridos',     icon: '🚌', color: '#14b8a6' },
-      { name: 'Rutas',          icon: '🛣️', color: '#3b82f6' },
-      { name: 'Paradas',        icon: '📍', color: '#ec4899' },
-      { name: 'Asistencia',     icon: '✅', color: '#10b981' },
-      { name: 'Pagos',          icon: '💳', color: '#f59e0b' },
-      { name: 'MapaTracking',   icon: '🗺️', color: '#06b6d4' },
-      { name: 'Notificaciones', icon: '🔔', color: '#ef4444' },
-      { name: 'Profile',        icon: '👤', color: '#8b5cf6' },
-    ],
+    padre: withDefaults([
+      { name: 'Dashboard', label: 'Dashboard', icon: 'grid-outline', primary: true },
+      { name: 'MapaTracking', label: 'Mapa', icon: 'map-outline', primary: true },
+      { name: 'Asistencia', label: 'Asistencia', icon: 'checkmark-circle-outline', primary: true },
+      { name: 'Pagos', label: 'Pagos', icon: 'card-outline', primary: true },
+    ]),
+    conductor: withDefaults([
+      { name: 'Dashboard', label: 'Dashboard', icon: 'grid-outline', primary: true },
+      { name: 'Conductor', label: 'Mi Ruta', icon: 'bus-outline', primary: true },
+    ]),
+    dueno: withDefaults([
+      { name: 'Dashboard', label: 'Dashboard', icon: 'grid-outline', primary: true },
+      { name: 'Recorridos', label: 'Recorridos', icon: 'trail-sign-outline', primary: true },
+      { name: 'Rutas', label: 'Rutas', icon: 'navigate-outline', primary: true },
+      { name: 'Paradas', label: 'Paradas', icon: 'location-outline' },
+      { name: 'Alumnos', label: 'Alumnos', icon: 'people-outline' },
+      { name: 'Pagos', label: 'Pagos', icon: 'card-outline' },
+    ]),
+    admin: withDefaults([
+      { name: 'Dashboard', label: 'Dashboard', icon: 'grid-outline', primary: true },
+      { name: 'MapaTracking', label: 'Mapa', icon: 'map-outline', primary: true },
+      { name: 'Asistencia', label: 'Asistencia', icon: 'checkmark-circle-outline', primary: true },
+      { name: 'Recorridos', label: 'Recorridos', icon: 'route-outline' },
+      { name: 'Rutas', label: 'Rutas', icon: 'navigate-outline' },
+      { name: 'Paradas', label: 'Paradas', icon: 'location-outline' },
+      { name: 'Alumnos', label: 'Alumnos', icon: 'people-outline' },
+      { name: 'Pagos', label: 'Pagos', icon: 'card-outline' },
+    ]),
   };
 
-  return roleMenus[rol?.toLowerCase()] || [];
+  const menu = roleMenus[rol?.toLowerCase()] || [];
+  return menu;
 };
 
-/** Verificar si un rol tiene acceso a un módulo específico */
-export const hasAccessToModule = (rol, moduleName) => {
-  const menu = getRoleMenu(rol);
-  return menu.some((item) => item.name === moduleName);
-};
+/** Módulos de primer nivel (barra inferior). */
+export const getPrimaryMenu = (rol) => getRoleMenu(rol).filter((i) => i.primary);
 
-/** Solo módulos (sin Profile ni Notificaciones, para BottomTabs de primer nivel) */
-export const getModuleMenuForRole = (rol) => {
-  const fullMenu = getRoleMenu(rol);
-  return fullMenu.filter(
-    (item) => item.name !== 'Profile' && item.name !== 'Notificaciones'
-  );
-};
+/** Módulos secundarios (drawer). */
+export const getSecondaryMenu = (rol) => getRoleMenu(rol).filter((i) => !i.primary);
 
-/**
- * Mapeo de nombres de módulos a nombres de screens
- */
-export const moduleToScreenName = {
-  Dashboard: 'Dashboard',
-  MapaTracking: 'MapaTracking',
-  Asistencia: 'Asistencia',
-  Pagos: 'Pagos',
-  Notificaciones: 'Notificaciones',
-  Conductor: 'Conductor', // Conservamos Conductor en lugar de MiRuta
-  Recorridos: 'Recorridos',
-  Rutas: 'Rutas',
-  Paradas: 'Paradas',
-  Alumnos: 'Alumnos',
-  Profile: 'Profile',
-};
+/** Verifica si un rol tiene acceso a un módulo específico. */
+export const hasAccessToModule = (rol, moduleName) =>
+  getRoleMenu(rol).some((i) => i.name === moduleName);

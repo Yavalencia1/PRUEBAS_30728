@@ -1,256 +1,291 @@
 import React from 'react';
-import { NavigationContainer } from '@react-navigation/native';
+import { NavigationContainer, useNavigation } from '@react-navigation/native';
 import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
-import { ActivityIndicator, View, Text } from 'react-native';
+import { createDrawerNavigator, DrawerContentScrollView, DrawerItemList, DrawerItem } from '@react-navigation/drawer';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { ActivityIndicator, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
-import { getRoleMenu } from './RoleMenu';
+import { getPrimaryMenu, getSecondaryMenu } from './RoleMenu';
 import { Colors } from '../theme/theme';
+import { useNotificationCount, NotificationCountProvider } from '../context/NotificationCountContext';
 
 // ─── Pantallas Auth ───────────────────────────────────────────────────────────
-import LoginScreen    from '../screens/LoginScreen';
+import LoginScreen from '../screens/LoginScreen';
 import RegisterScreen from '../screens/RegisterScreen';
 
 // ─── Pantallas Principales ────────────────────────────────────────────────────
 import DashboardScreen from '../screens/DashboardScreen';
-import ProfileScreen   from '../screens/ProfileScreen';
+import ProfileScreen from '../screens/ProfileScreen';
 
-// ─── Pantalla del Conductor (Dev 4 - Voncho) ──────────────────────────────────
-// No modificar la lógica de ConductorScreen.
-// Recibe el token real desde AuthContext gracias a la integración en Fase 5.
+// ─── Pantalla del Conductor (no modificar la lógica) ──────────────────────────
 import ConductorScreen from '../screens/ConductorScreen';
 
-// ─── Módulos adicionales (stubs temporales hasta implementación completa) ──────
-// Reemplazar cada import por la pantalla real cuando el módulo esté listo.
+// ─── Módulos ──────────────────────────────────────────────────────────────────
 import NotificacionesScreen from '../screens/notificaciones/NotificacionesScreen';
-import MapaTrackingScreen   from '../screens/mapa/MapaTrackingScreen';
-import AlumnosScreen        from '../screens/alumnos/AlumnosScreen';
-import AsistenciaScreen     from '../screens/asistencia/AsistenciaScreen';
-import RecorridosScreen     from '../screens/recorridos/RecorridosScreen';
-import RutasScreen          from '../screens/rutas/RutasScreen';
-import PagosScreen          from '../screens/pagos/PagosScreen';
-import ParadasScreen        from '../screens/paradas/ParadasScreen';
-
-// ─────────────────────────────────────────────────────────────────────────────
+import MapaTrackingScreen from '../screens/mapa/MapaTrackingScreen';
+import AlumnosScreen from '../screens/alumnos/AlumnosScreen';
+import AsistenciaScreen from '../screens/asistencia/AsistenciaScreen';
+import RecorridosScreen from '../screens/recorridos/RecorridosScreen';
+import RutasScreen from '../screens/rutas/RutasScreen';
+import PagosScreen from '../screens/pagos/PagosScreen';
+import ParadasScreen from '../screens/paradas/ParadasScreen';
 
 const Stack = createNativeStackNavigator();
-const Tab   = createBottomTabNavigator();
+const Tab = createBottomTabNavigator();
+const Drawer = createDrawerNavigator();
 
-// ─── Auth Stack (pantallas sin sesión) ───────────────────────────────────────
+const screenRegistry = {
+  Dashboard: DashboardScreen,
+  MapaTracking: MapaTrackingScreen,
+  Asistencia: AsistenciaScreen,
+  Pagos: PagosScreen,
+  Notificaciones: NotificacionesScreen,
+  Conductor: ConductorScreen,
+  Recorridos: RecorridosScreen,
+  Rutas: RutasScreen,
+  Paradas: ParadasScreen,
+  Alumnos: AlumnosScreen,
+  Profile: ProfileScreen,
+};
 
+// ─── Campana con badge de no leídas (header) ──────────────────────────────────
+function BellButton() {
+  const navigation = useNavigation();
+  const { unreadCount } = useNotificationCount();
+  return (
+    <TouchableOpacity onPress={() => navigation.navigate('Notificaciones')} style={styles.bell}>
+      <Ionicons name="notifications-outline" size={24} color="#1a202c" />
+      {unreadCount > 0 && (
+        <View style={styles.badge}>
+          <Text style={styles.badgeText}>{unreadCount > 99 ? '99+' : String(unreadCount)}</Text>
+        </View>
+      )}
+    </TouchableOpacity>
+  );
+}
+
+// ─── Auth Stack (sin sesión) ──────────────────────────────────────────────────
 function AuthStack() {
   return (
     <Stack.Navigator
-      screenOptions={{
-        headerShown: false,
-        animation: 'fade',
-        contentStyle: { backgroundColor: '#f8f9fa' },
-      }}
+      screenOptions={{ headerShown: false, animation: 'fade', contentStyle: { backgroundColor: '#f8f9fa' } }}
     >
-      <Stack.Screen name="Login"    component={LoginScreen}    />
+      <Stack.Screen name="Login" component={LoginScreen} />
       <Stack.Screen name="Register" component={RegisterScreen} />
     </Stack.Navigator>
   );
 }
 
-// ─── Tab Navigator principal (post-login) ────────────────────────────────────
-
-function MainTabNavigator({ usuario }) {
-  const menu = getRoleMenu(usuario?.rol);
+// ─── Bottom Tabs (módulos primarios del rol) ──────────────────────────────────
+function MainTabs() {
+  const { usuario } = useAuth();
+  const navigation = useNavigation();
+  const primary = getPrimaryMenu(usuario?.rol);
 
   return (
     <Tab.Navigator
-      screenOptions={({ route }) => ({
+      screenOptions={() => ({
         headerShown: true,
-        tabBarLabel:      getTabLabel(route.name),
-        tabBarIcon:       ({ color }) => (
-          <Text style={{ fontSize: 18 }}>{getTabIcon(route.name)}</Text>
+        headerLeft: () => (
+          <TouchableOpacity onPress={() => navigation.openDrawer()} style={styles.drawerToggle}>
+            <Ionicons name="menu-outline" size={24} color="#1a202c" />
+          </TouchableOpacity>
         ),
-        tabBarActiveTintColor:   Colors.primary,
+        headerRight: () => <BellButton />,
+        tabBarIcon: ({ color, size }) => {
+          // El ícono se resuelve por nombre de ruta en el render de cada Tab.Screen.
+          return <Ionicons name="ellipse-outline" size={size} color={color} />;
+        },
+        tabBarActiveTintColor: Colors.primary,
         tabBarInactiveTintColor: '#a0aec0',
         tabBarStyle: {
           backgroundColor: '#ffffff',
-          borderTopColor:  '#e2e8f0',
-          borderTopWidth:  1,
-          height:          60,
-          paddingBottom:   8,
+          borderTopColor: '#e2e8f0',
+          borderTopWidth: 1,
+          height: 60,
+          paddingBottom: 8,
         },
         headerStyle: {
           backgroundColor: '#ffffff',
           borderBottomColor: '#e2e8f0',
           borderBottomWidth: 1,
         },
-        headerTintColor:      '#1a202c',
-        headerTitleStyle:     { fontWeight: '600' },
+        headerTintColor: '#1a202c',
+        headerTitleStyle: { fontWeight: '600' },
       })}
     >
-      {/* Dashboard — siempre visible */}
-      <Tab.Screen name="Dashboard" component={DashboardScreen} />
-
-      {/* Mapa — padres y admin */}
-      {menu.some((m) => m.name === 'MapaTracking') && (
+      {primary.map((item) => (
         <Tab.Screen
-          name="MapaTracking"
-          component={MapaTrackingScreen}
-          options={{ title: 'Mapa' }}
+          key={item.name}
+          name={item.name}
+          component={screenRegistry[item.name]}
+          options={{
+            title: item.label,
+            tabBarLabel: item.label,
+            tabBarIcon: ({ color, size }) => (
+              <Ionicons name={item.icon} size={size} color={color} />
+            ),
+          }}
         />
-      )}
-
-      {/* Conductor — solo rol 'conductor' (pantalla del Dev 4) */}
-      {menu.some((m) => m.name === 'Conductor') && (
-        <Tab.Screen
-          name="Conductor"
-          component={ConductorScreen}
-          options={{ title: 'Mi Ruta', headerShown: false }}
-        />
-      )}
-
-      {/* Asistencia — conductor, padre, admin */}
-      {menu.some((m) => m.name === 'Asistencia') && (
-        <Tab.Screen
-          name="Asistencia"
-          component={AsistenciaScreen}
-          options={{ title: 'Asistencia' }}
-        />
-      )}
-
-      {/* Pagos — padre, dueño, admin */}
-      {menu.some((m) => m.name === 'Pagos') && (
-        <Tab.Screen
-          name="Pagos"
-          component={PagosScreen}
-          options={{ title: 'Pagos' }}
-        />
-      )}
-
-      {/* Alumnos — dueño, admin */}
-      {menu.some((m) => m.name === 'Alumnos') && (
-        <Tab.Screen
-          name="Alumnos"
-          component={AlumnosScreen}
-          options={{ title: 'Alumnos' }}
-        />
-      )}
-
-      {/* Recorridos — dueño, admin */}
-      {menu.some((m) => m.name === 'Recorridos') && (
-        <Tab.Screen
-          name="Recorridos"
-          component={RecorridosScreen}
-          options={{ title: 'Recorridos' }}
-        />
-      )}
-
-      {/* Rutas — dueño, admin */}
-      {menu.some((m) => m.name === 'Rutas') && (
-        <Tab.Screen
-          name="Rutas"
-          component={RutasScreen}
-          options={{ title: 'Rutas' }}
-        />
-      )}
-
-      {/* Paradas — dueño, admin */}
-      {menu.some((m) => m.name === 'Paradas') && (
-        <Tab.Screen
-          name="Paradas"
-          component={ParadasScreen}
-          options={{ title: 'Paradas' }}
-        />
-      )}
-
-      {/* Notificaciones — todos los roles */}
-      <Tab.Screen
-        name="Notificaciones"
-        component={NotificacionesScreen}
-        options={{ title: 'Notificaciones' }}
-      />
-
-      {/* Perfil — todos los roles */}
-      <Tab.Screen
-        name="Profile"
-        component={ProfileScreen}
-        options={{ title: 'Perfil' }}
-      />
+      ))}
     </Tab.Navigator>
   );
 }
 
-// ─── Root Navigator ───────────────────────────────────────────────────────────
+// ─── Drawer (Inicio = tabs + módulos secundarios + Perfil + Cerrar sesión) ─────
+function CustomDrawerContent(props) {
+  const { logout } = useAuth();
+  return (
+    <DrawerContentScrollView {...props}>
+      <DrawerItemList {...props} />
+      <DrawerItem
+        label="Cerrar sesión"
+        icon={({ color, size }) => <Ionicons name="log-out-outline" color={color} size={size} />}
+        onPress={logout}
+      />
+    </DrawerContentScrollView>
+  );
+}
 
-function RootStack({ usuario }) {
+function AppDrawer() {
+  const { usuario } = useAuth();
+  const secondary = getSecondaryMenu(usuario?.rol);
+
+  return (
+    <Drawer.Navigator
+      drawerContent={(props) => <CustomDrawerContent {...props} />}
+      screenOptions={({ navigation }) => ({
+        headerShown: true,
+        headerRight: () => <BellButton />,
+        headerLeft: () => (
+          <TouchableOpacity onPress={() => navigation.openDrawer()} style={styles.drawerToggle}>
+            <Ionicons name="menu-outline" size={24} color="#1a202c" />
+          </TouchableOpacity>
+        ),
+        headerStyle: {
+          backgroundColor: '#ffffff',
+          borderBottomColor: '#e2e8f0',
+          borderBottomWidth: 1,
+        },
+        headerTintColor: '#1a202c',
+        headerTitleStyle: { fontWeight: '600' },
+        drawerActiveTintColor: Colors.primary,
+        drawerInactiveTintColor: '#4a5568',
+      })}
+    >
+      <Drawer.Screen
+        name="Inicio"
+        component={MainTabs}
+        options={{
+          headerShown: false,
+          title: 'RouteKids',
+          drawerIcon: ({ color, size }) => <Ionicons name="home-outline" color={color} size={size} />,
+        }}
+      />
+      {secondary.map((item) => (
+        <Drawer.Screen
+          key={item.name}
+          name={item.name}
+          component={screenRegistry[item.name]}
+          options={{
+            title: item.label,
+            drawerIcon: ({ color, size }) => <Ionicons name={item.icon} color={color} size={size} />,
+          }}
+        />
+      ))}
+      <Drawer.Screen
+        name="Profile"
+        component={ProfileScreen}
+        options={{
+          title: 'Perfil',
+          drawerIcon: ({ color, size }) => <Ionicons name="person-outline" color={color} size={size} />,
+        }}
+      />
+    </Drawer.Navigator>
+  );
+}
+
+// ─── Root Stack autenticado ───────────────────────────────────────────────────
+function AppStack() {
   return (
     <Stack.Navigator screenOptions={{ headerShown: false, animation: 'none' }}>
+      <Stack.Screen name="Home" component={AppDrawer} />
       <Stack.Screen
-        name="MainApp"
-        component={() => <MainTabNavigator usuario={usuario} />}
+        name="Notificaciones"
+        component={NotificacionesScreen}
+        options={{ title: 'Notificaciones' }}
       />
     </Stack.Navigator>
   );
 }
 
-// ─── Punto de entrada de navegación ──────────────────────────────────────────
-
+// ─── Punto de entrada de navegación ────────────────────────────────────────────
 export default function AppNavigator() {
-  const { isLoading, usuario, isLoggedIn } = useAuth();
+  const { isLoading, isLoggedIn } = useAuth();
 
-  // Splash de carga mientras se verifica la sesión
   if (isLoading) {
     return (
-      <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f8f9fa' }}>
+      <View style={styles.splash}>
         <ActivityIndicator size="large" color="#6366f1" />
-        <Text style={{ marginTop: 12, color: '#718096', fontSize: 14 }}>Verificando sesión…</Text>
+        <Text style={styles.splashText}>Verificando sesión…</Text>
       </View>
     );
   }
 
   return (
-    <NavigationContainer>
-      {!isLoggedIn ? (
-        // Sin sesión → flujo de autenticación
-        <Stack.Navigator screenOptions={{ headerShown: false, animation: 'none' }}>
-          <Stack.Screen name="Auth" component={AuthStack} options={{ animation: 'none' }} />
-        </Stack.Navigator>
-      ) : (
-        // Con sesión → app principal con tabs por rol
-        <RootStack usuario={usuario} />
-      )}
-    </NavigationContainer>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <NavigationContainer>
+        {!isLoggedIn ? (
+          <AuthStack />
+        ) : (
+          <NotificationCountProvider>
+            <AppStack />
+          </NotificationCountProvider>
+        )}
+      </NavigationContainer>
+    </GestureHandlerRootView>
   );
 }
 
-// ─── Helpers de etiquetas e iconos ────────────────────────────────────────────
-
-function getTabLabel(routeName) {
-  const labels = {
-    Dashboard:      'Dashboard',
-    MapaTracking:   'Mapa',
-    Conductor:      'Mi Ruta',
-    Asistencia:     'Asistencia',
-    Pagos:          'Pagos',
-    Alumnos:        'Alumnos',
-    Recorridos:     'Recorridos',
-    Rutas:          'Rutas',
-    Paradas:        'Paradas',
-    Notificaciones: 'Avisos',
-    Profile:        'Perfil',
-  };
-  return labels[routeName] || routeName;
-}
-
-function getTabIcon(routeName) {
-  const icons = {
-    Dashboard:      '📊',
-    MapaTracking:   '🗺️',
-    Conductor:      '🚌',
-    Asistencia:     '✅',
-    Pagos:          '💳',
-    Alumnos:        '👥',
-    Recorridos:     '🚌',
-    Rutas:          '🛣️',
-    Paradas:        '📍',
-    Notificaciones: '🔔',
-    Profile:        '👤',
-  };
-  return icons[routeName] || '📱';
-}
+const styles = StyleSheet.create({
+  splash: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+  },
+  splashText: {
+    marginTop: 12,
+    color: '#718096',
+    fontSize: 14,
+  },
+  bell: {
+    marginRight: 14,
+    width: 28,
+    height: 28,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  badge: {
+    position: 'absolute',
+    top: -2,
+    right: -4,
+    backgroundColor: '#ef4444',
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  badgeText: {
+    color: '#ffffff',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  drawerToggle: {
+    marginLeft: 14,
+  },
+});
