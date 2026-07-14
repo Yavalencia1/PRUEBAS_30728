@@ -32,6 +32,7 @@ build/
 # Node / Expo
 node_modules/
 .expo/
+frontend-mobile/dist/
 
 # Base de datos local
 postgres_data/

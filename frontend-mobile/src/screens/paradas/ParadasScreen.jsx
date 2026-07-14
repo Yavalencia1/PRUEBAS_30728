@@ -52,15 +52,17 @@ function SimpleSelector({ label, options, selectedValue, onValueChange, disabled
   );
 }
 
-export default function ParadasScreen() {
+export default function ParadasScreen({ rutaId, recorridoId, onRowPress }) {
   const { usuario } = useAuth();
   const rol = usuario?.rol?.toLowerCase();
 
   const canDelete = rol === 'admin';
   const canCreate = rol === 'admin' || rol === 'dueno';
+  const canEdit = rol === 'admin' || rol === 'dueno';
 
   const [paradas, setParadas] = useState([]);
   const [rutas, setRutas] = useState([]);         // <— Rutas, no recorridos (ruta_id requerido por api)
+  const [recorridos, setRecorridos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
@@ -75,19 +77,61 @@ export default function ParadasScreen() {
   });
   const [saving, setSaving] = useState(false);
 
+  // Filtros manuales (solo cuando no está acotado por drill-down)
+  const [filterRecorridoId, setFilterRecorridoId] = useState('');
+  const [filterRutaId, setFilterRutaId] = useState('');
+
+  // Modal de edición
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editParada, setEditParada] = useState(null);
+  const [editForm, setEditForm] = useState({ nombre: '', latitud: '', longitud: '', orden: '' });
+  const [savingEdit, setSavingEdit] = useState(false);
+
   useEffect(() => {
     loadData();
   }, []);
+
+  // Al navegar desde otra tab, aplicamos los filtros sembrados (ruta y/o recorrido).
+  useEffect(() => {
+    const rec = recorridoId ? String(recorridoId) : '';
+    const rut = rutaId ? String(rutaId) : '';
+    if (!rec && !rut) return;
+    applyFilters(rec, rut);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [rutaId, recorridoId]);
+
+  // Carga paradas aplicando recorrido/ruta explícitos (evita closures de estado obsoletos).
+  const applyFilters = async (recId, rutaIdValue) => {
+    setFilterRecorridoId(recId || '');
+    setFilterRutaId(rutaIdValue || '');
+    try {
+      setLoading(true);
+      let result;
+      if (rutaIdValue) {
+        result = await api.paradas.list({ rutaId: rutaIdValue });
+      } else if (recId) {
+        result = await api.paradas.list({ recorridoId: recId });
+      } else {
+        result = await api.paradas.list();
+      }
+      setParadas(result.ok && Array.isArray(result.data) ? result.data : []);
+    } catch (err) {
+      console.error('[ParadasScreen] Error filtros sembrados:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   const loadData = async () => {
     try {
       setLoading(true);
       setError(null);
-      // Cargamos paradas y rutas en paralelo.
+      // Cargamos paradas, rutas y recorridos en paralelo (los filtros siempre visibles).
       // El backend filtra según JWT; el dueño solo recibe lo suyo.
-      const [paradasResult, rutasResult] = await Promise.all([
+      const [paradasResult, rutasResult, recorridosResult] = await Promise.all([
         api.paradas.list(),
         api.rutas.list(),
+        api.recorridos.list(),
       ]);
 
       setParadas(
@@ -95,6 +139,9 @@ export default function ParadasScreen() {
       );
       setRutas(
         rutasResult.ok && Array.isArray(rutasResult.data) ? rutasResult.data : []
+      );
+      setRecorridos(
+        recorridosResult.ok && Array.isArray(recorridosResult.data) ? recorridosResult.data : []
       );
 
       if (!paradasResult.ok) {
@@ -177,10 +224,96 @@ export default function ParadasScreen() {
     setNewParada({ nombre: '', latitud: '', longitud: '', ruta_id: '', orden: '' });
   };
 
+  const handleEditOpen = (parada) => {
+    setEditParada(parada);
+    setEditForm({
+      nombre: parada.nombre || '',
+      latitud: parada.latitud != null ? String(parada.latitud) : '',
+      longitud: parada.longitud != null ? String(parada.longitud) : '',
+      orden: parada.orden != null ? String(parada.orden) : '',
+    });
+    setEditModalVisible(true);
+  };
+
+  const handleEditSave = async () => {
+    if (!editForm.nombre.trim()) {
+      Alert.alert('Error', 'El nombre es requerido');
+      return;
+    }
+    const lat = parseFloat(editForm.latitud);
+    const lng = parseFloat(editForm.longitud);
+    const ord = parseInt(editForm.orden);
+    if (Number.isNaN(lat) || Number.isNaN(lng)) {
+      Alert.alert('Error', 'Latitud y longitud deben ser numéricas');
+      return;
+    }
+    try {
+      setSavingEdit(true);
+      const result = await api.paradas.update(editParada.id, {
+        nombre: editForm.nombre.trim(),
+        latitud: lat,
+        longitud: lng,
+        orden: Number.isNaN(ord) ? 0 : ord,
+      });
+      if (result.ok) {
+        setEditModalVisible(false);
+        setEditParada(null);
+        loadData();
+        Alert.alert('✅ Éxito', 'Parada actualizada correctamente');
+      } else {
+        Alert.alert('Error', result.mensaje || 'No se pudo actualizar la parada');
+      }
+    } catch (err) {
+      Alert.alert('Error', err.message || 'No se pudo actualizar la parada');
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
   const rutaOptions = rutas.map(r => ({
     value: r.id?.toString(),
     label: `${r.nombre}${r.recorrido?.nombre ? ` (${r.recorrido.nombre})` : ''}`,
   }));
+
+  const recorridoFilterOptions = [
+    { value: '', label: 'Todos los recorridos' },
+    ...recorridos.map(r => ({ value: r.id?.toString(), label: r.nombre })),
+  ];
+
+  // Opciones de ruta en cascada: solo las rutas del recorrido seleccionado
+  const rutaFilterOptions = [
+    { value: '', label: 'Todas las rutas' },
+    ...rutas
+      .filter(r => !filterRecorridoId || String(r.recorrido_id) === String(filterRecorridoId))
+      .map(r => ({ value: r.id?.toString(), label: `${r.nombre}${r.recorrido?.nombre ? ` (${r.recorrido.nombre})` : ''}` })),
+  ];
+
+  const applyRecorridoFilter = async (value) => {
+    setFilterRecorridoId(value);
+    setFilterRutaId(''); // cascada: resetear ruta al cambiar recorrido
+    try {
+      setLoading(true);
+      const result = await api.paradas.list(value ? { recorridoId: value } : {});
+      setParadas(result.ok && Array.isArray(result.data) ? result.data : []);
+    } catch (err) {
+      console.error('[ParadasScreen] Error filtro recorrido:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const applyRutaFilter = async (value) => {
+    setFilterRutaId(value);
+    try {
+      setLoading(true);
+      const result = await api.paradas.list(value ? { rutaId: value } : (filterRecorridoId ? { recorridoId: filterRecorridoId } : {}));
+      setParadas(result.ok && Array.isArray(result.data) ? result.data : []);
+    } catch (err) {
+      console.error('[ParadasScreen] Error filtro ruta:', err);
+    } finally {
+      setLoading(false);
+    }
+  };
 
   if (loading && !paradas.length) {
     return (
@@ -202,12 +335,13 @@ export default function ParadasScreen() {
         <TouchableOpacity
           style={styles.createButton}
           onPress={() => {
-            if (rutas.length === 0) {
+            if (!rutaId && rutas.length === 0) {
               Alert.alert('Sin rutas', 'Debes tener al menos una ruta para crear paradas.');
               return;
             }
-            if (!newParada.ruta_id && rutas.length > 0) {
-              setNewParada(prev => ({ ...prev, ruta_id: rutas[0].id?.toString() }));
+            if (!newParada.ruta_id) {
+              const preselect = (filterRutaId || rutas[0]?.id)?.toString();
+              setNewParada(prev => ({ ...prev, ruta_id: preselect }));
             }
             setModalVisible(true);
           }}
@@ -215,6 +349,21 @@ export default function ParadasScreen() {
           <Text style={styles.createButtonText}>+ Nueva Parada</Text>
         </TouchableOpacity>
       )}
+
+      <View style={styles.filterContainer}>
+        <SimpleSelector
+          label="Filtrar por recorrido"
+          options={recorridoFilterOptions}
+          selectedValue={filterRecorridoId}
+          onValueChange={applyRecorridoFilter}
+        />
+        <SimpleSelector
+          label="Filtrar por ruta"
+          options={rutaFilterOptions}
+          selectedValue={filterRutaId}
+          onValueChange={applyRutaFilter}
+        />
+      </View>
 
       {paradas.length === 0 ? (
         <View style={styles.emptyContainer}>
@@ -226,7 +375,13 @@ export default function ParadasScreen() {
           data={paradas}
           keyExtractor={(item) => item.id?.toString()}
           renderItem={({ item }) => (
-            <ParadaCard parada={item} canDelete={canDelete} onDelete={handleDelete} />
+            <TouchableOpacity
+              activeOpacity={onRowPress ? 0.8 : 1}
+              onPress={onRowPress ? () => onRowPress(item) : undefined}
+              disabled={!onRowPress}
+            >
+              <ParadaCard parada={item} canEdit={canEdit} onEdit={handleEditOpen} canDelete={canDelete} onDelete={handleDelete} />
+            </TouchableOpacity>
           )}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           contentContainerStyle={styles.listContent}
@@ -312,11 +467,82 @@ export default function ParadasScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Modal de edición */}
+      <Modal visible={editModalVisible} animationType="slide" transparent onRequestClose={() => setEditModalVisible(false)}>
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Editar Parada</Text>
+
+            <TextInput
+              style={styles.input}
+              placeholder="Nombre *"
+              placeholderTextColor="#a0aec0"
+              value={editForm.nombre}
+              onChangeText={(text) => setEditForm({ ...editForm, nombre: text })}
+              editable={!savingEdit}
+            />
+
+            <Text style={styles.coordsLabel}>Coordenadas Geográficas</Text>
+            <View style={styles.rowInputs}>
+              <TextInput
+                style={[styles.input, { flex: 1 }]}
+                placeholder="Latitud"
+                placeholderTextColor="#a0aec0"
+                value={editForm.latitud}
+                onChangeText={(text) => setEditForm({ ...editForm, latitud: text })}
+                keyboardType="decimal-pad"
+                editable={!savingEdit}
+              />
+              <TextInput
+                style={[styles.input, { flex: 1, marginLeft: 8 }]}
+                placeholder="Longitud"
+                placeholderTextColor="#a0aec0"
+                value={editForm.longitud}
+                onChangeText={(text) => setEditForm({ ...editForm, longitud: text })}
+                keyboardType="decimal-pad"
+                editable={!savingEdit}
+              />
+            </View>
+
+            <TextInput
+              style={styles.input}
+              placeholder="Orden (ej. 1)"
+              placeholderTextColor="#a0aec0"
+              value={editForm.orden}
+              onChangeText={(text) => setEditForm({ ...editForm, orden: text })}
+              keyboardType="numeric"
+              editable={!savingEdit}
+            />
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.button, styles.buttonCancel]}
+                onPress={() => setEditModalVisible(false)}
+                disabled={savingEdit}
+              >
+                <Text style={styles.buttonCancelText}>Cancelar</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.button, styles.buttonCreate, savingEdit && styles.buttonDisabled]}
+                onPress={handleEditSave}
+                disabled={savingEdit}
+              >
+                {savingEdit
+                  ? <ActivityIndicator color="#ffffff" size="small" />
+                  : <Text style={styles.buttonText}>Guardar</Text>
+                }
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
 
-function ParadaCard({ parada, canDelete, onDelete }) {
+function ParadaCard({ parada, canEdit, onEdit, canDelete, onDelete }) {
   return (
     <View style={styles.card}>
       <View style={styles.cardContent}>
@@ -341,14 +567,24 @@ function ParadaCard({ parada, canDelete, onDelete }) {
         )}
       </View>
 
-      {canDelete && (
-        <TouchableOpacity
-          style={styles.deleteButton}
-          onPress={() => onDelete(parada)}
-        >
-          <Text style={styles.deleteIcon}>🗑️</Text>
-        </TouchableOpacity>
-      )}
+      <View style={styles.cardActions}>
+        {canEdit && (
+          <TouchableOpacity
+            style={styles.editButton}
+            onPress={() => onEdit(parada)}
+          >
+            <Text style={styles.editIcon}>✏️</Text>
+          </TouchableOpacity>
+        )}
+        {canDelete && (
+          <TouchableOpacity
+            style={styles.deleteButton}
+            onPress={() => onDelete(parada)}
+          >
+            <Text style={styles.deleteIcon}>🗑️</Text>
+          </TouchableOpacity>
+        )}
+      </View>
     </View>
   );
 }
@@ -361,6 +597,7 @@ const styles = StyleSheet.create({
   createButton:    { marginHorizontal: 16, marginTop: 16, backgroundColor: '#6366f1', paddingVertical: 12, borderRadius: 8, alignItems: 'center' },
   createButtonText:{ color: '#ffffff', fontWeight: '600', fontSize: 16 },
   emptyContainer:  { flex: 1, justifyContent: 'center', alignItems: 'center' },
+  filterContainer: { paddingHorizontal: 16, marginTop: 12 },
   emptyIcon:       { fontSize: 48, marginBottom: 16 },
   emptyText:       { fontSize: 18, fontWeight: '600', color: '#1a202c' },
   card:            { backgroundColor: '#ffffff', borderRadius: 8, padding: 12, marginBottom: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
@@ -373,6 +610,9 @@ const styles = StyleSheet.create({
   cardCoords:      { fontSize: 11, color: '#a0aec0' },
   deleteButton:    { width: 36, height: 36, borderRadius: 6, backgroundColor: '#fee2e2', justifyContent: 'center', alignItems: 'center', marginLeft: 8 },
   deleteIcon:      { fontSize: 18 },
+  cardActions:      { flexDirection: 'row', alignItems: 'center' },
+  editButton:      { width: 36, height: 36, borderRadius: 6, backgroundColor: '#e0e7ff', justifyContent: 'center', alignItems: 'center', marginLeft: 8 },
+  editIcon:        { fontSize: 18 },
   modalContainer:  { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
   modalContent:    { backgroundColor: '#ffffff', borderTopLeftRadius: 16, borderTopRightRadius: 16, paddingHorizontal: 20, paddingVertical: 20, paddingBottom: 40 },
   modalTitle:      { fontSize: 18, fontWeight: 'bold', marginBottom: 16, color: '#1a202c' },

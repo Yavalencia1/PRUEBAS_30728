@@ -13,15 +13,18 @@ import {
   RefreshControl,
 } from 'react-native';
 import { useAuth } from '../../context/AuthContext';
+import { useNavigation } from '@react-navigation/native';
 import { api } from '../../services/api';
 
 export default function RecorridosScreen() {
   const { usuario } = useAuth();
+  const navigation = useNavigation();
   const rol = usuario?.rol?.toLowerCase();
 
-  // ADMIN puede eliminar; DUEÑO y ADMIN pueden crear
+  // ADMIN puede eliminar; DUEÑO y ADMIN pueden crear y editar
   const canDelete = rol === 'admin';
   const canCreate = rol === 'admin' || rol === 'dueno';
+  const canEdit = rol === 'admin' || rol === 'dueno';
 
   const [recorridos, setRecorridos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -36,6 +39,12 @@ export default function RecorridosScreen() {
     activo: true,
   });
   const [saving, setSaving] = useState(false);
+
+  // Modal de edición
+  const [editModalVisible, setEditModalVisible] = useState(false);
+  const [editRecorrido, setEditRecorrido] = useState(null);
+  const [editForm, setEditForm] = useState({ nombre: '', descripcion: '', activo: true });
+  const [savingEdit, setSavingEdit] = useState(false);
 
   useEffect(() => {
     loadRecorridos();
@@ -137,6 +146,44 @@ export default function RecorridosScreen() {
     setNewRecorrido({ nombre: '', descripcion: '', activo: true });
   };
 
+  const handleEditOpen = (recorrido) => {
+    setEditRecorrido(recorrido);
+    setEditForm({
+      nombre: recorrido.nombre || '',
+      descripcion: recorrido.descripcion || '',
+      activo: recorrido.activo !== false,
+    });
+    setEditModalVisible(true);
+  };
+
+  const handleEditSave = async () => {
+    if (!editForm.nombre.trim()) {
+      Alert.alert('Error', 'El nombre es requerido');
+      return;
+    }
+    try {
+      setSavingEdit(true);
+      const result = await api.recorridos.update(
+        editRecorrido.id,
+        editForm.nombre.trim(),
+        editForm.descripcion.trim(),
+        editForm.activo
+      );
+      if (result.ok) {
+        setEditModalVisible(false);
+        setEditRecorrido(null);
+        loadRecorridos();
+        Alert.alert('✅ Éxito', 'Recorrido actualizado correctamente');
+      } else {
+        Alert.alert('Error', result.mensaje || 'No se pudo actualizar el recorrido');
+      }
+    } catch (err) {
+      Alert.alert('Error', err.message || 'No se pudo actualizar el recorrido');
+    } finally {
+      setSavingEdit(false);
+    }
+  };
+
   if (loading && !recorridos.length) {
     return (
       <View style={styles.container}>
@@ -173,11 +220,18 @@ export default function RecorridosScreen() {
           data={recorridos}
           keyExtractor={(item) => item.id?.toString()}
           renderItem={({ item }) => (
-            <RecorridoCard
-              recorrido={item}
-              canDelete={canDelete}
-              onDelete={handleDelete}
-            />
+            <TouchableOpacity
+              activeOpacity={0.8}
+              onPress={() => navigation.navigate('RutasTab', { recorridoId: item.id })}
+            >
+              <RecorridoCard
+                recorrido={item}
+                canEdit={canEdit}
+                onEdit={handleEditOpen}
+                canDelete={canDelete}
+                onDelete={handleDelete}
+              />
+            </TouchableOpacity>
           )}
           refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
           contentContainerStyle={styles.listContent}
@@ -242,11 +296,70 @@ export default function RecorridosScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* Modal de edición */}
+      <Modal visible={editModalVisible} animationType="slide" transparent onRequestClose={() => setEditModalVisible(false)}>
+        <View style={styles.modalContainer}>
+          <View style={styles.modalContent}>
+            <Text style={styles.modalTitle}>Editar Recorrido</Text>
+
+            <TextInput
+              style={styles.input}
+              placeholder="Nombre *"
+              placeholderTextColor="#a0aec0"
+              value={editForm.nombre}
+              onChangeText={(text) => setEditForm({ ...editForm, nombre: text })}
+              editable={!savingEdit}
+            />
+
+            <TextInput
+              style={[styles.input, { height: 80 }]}
+              placeholder="Descripción (opcional)"
+              placeholderTextColor="#a0aec0"
+              value={editForm.descripcion}
+              onChangeText={(text) => setEditForm({ ...editForm, descripcion: text })}
+              multiline
+              editable={!savingEdit}
+            />
+
+            <View style={styles.switchContainer}>
+              <Text style={styles.switchLabel}>Activo</Text>
+              <Switch
+                value={editForm.activo}
+                onValueChange={(value) => setEditForm({ ...editForm, activo: value })}
+                disabled={savingEdit}
+                trackColor={{ true: '#6366f1' }}
+              />
+            </View>
+
+            <View style={styles.modalButtons}>
+              <TouchableOpacity
+                style={[styles.button, styles.buttonCancel]}
+                onPress={() => setEditModalVisible(false)}
+                disabled={savingEdit}
+              >
+                <Text style={styles.buttonCancelText}>Cancelar</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={[styles.button, styles.buttonCreate, savingEdit && styles.buttonDisabled]}
+                onPress={handleEditSave}
+                disabled={savingEdit}
+              >
+                {savingEdit
+                  ? <ActivityIndicator color="#ffffff" size="small" />
+                  : <Text style={styles.buttonText}>Guardar</Text>
+                }
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </View>
   );
 }
 
-function RecorridoCard({ recorrido, canDelete, onDelete }) {
+function RecorridoCard({ recorrido, canEdit, onEdit, canDelete, onDelete }) {
   return (
     <View style={styles.card}>
       <View style={styles.cardContent}>
@@ -266,15 +379,26 @@ function RecorridoCard({ recorrido, canDelete, onDelete }) {
         )}
       </View>
 
-      {/* Botón eliminar — solo visible para ADMIN */}
-      {canDelete && (
-        <TouchableOpacity
-          style={styles.deleteButton}
-          onPress={() => onDelete(recorrido)}
-        >
-          <Text style={styles.deleteIcon}>🗑️</Text>
-        </TouchableOpacity>
-      )}
+      <View style={styles.cardActions}>
+        {/* Botón editar — visible para ADMIN y DUEÑO */}
+        {canEdit && (
+          <TouchableOpacity
+            style={styles.editButton}
+            onPress={() => onEdit(recorrido)}
+          >
+            <Text style={styles.editIcon}>✏️</Text>
+          </TouchableOpacity>
+        )}
+        {/* Botón eliminar — solo visible para ADMIN */}
+        {canDelete && (
+          <TouchableOpacity
+            style={styles.deleteButton}
+            onPress={() => onDelete(recorrido)}
+          >
+            <Text style={styles.deleteIcon}>🗑️</Text>
+          </TouchableOpacity>
+        )}
+      </View>
     </View>
   );
 }
@@ -337,6 +461,10 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
   },
+  cardActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
   cardContent: {
     flex: 1,
   },
@@ -382,6 +510,18 @@ const styles = StyleSheet.create({
     marginLeft: 8,
   },
   deleteIcon: {
+    fontSize: 18,
+  },
+  editButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 6,
+    backgroundColor: '#e0e7ff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginLeft: 8,
+  },
+  editIcon: {
     fontSize: 18,
   },
   modalContainer: {

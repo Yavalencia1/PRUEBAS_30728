@@ -12,7 +12,7 @@ from app.models.ruta import Ruta, TipoRuta
 from app.models.parada import Parada
 from app.models.usuario import RolUsuario, Usuario
 from app.routers.auth import obtener_usuario_actual
-from app.schemas.recorrido import RecorridoCrear
+from app.schemas.recorrido import RecorridoCrear, RecorridoActualizar
 
 router = APIRouter(tags=["Recorridos"])
 
@@ -90,6 +90,50 @@ async def obtener_recorrido(
 			detail="No tienes permisos para ver este recorrido",
 		)
 	return _respuesta_estandarizada(_serializar_recorrido(recorrido), "Recorrido obtenido correctamente")
+
+
+@router.put("/{recorrido_id}", response_model=dict)
+async def actualizar_recorrido(
+	recorrido_id: int,
+	datos: RecorridoActualizar,
+	db: AsyncSession = Depends(get_db),
+	usuario: Usuario = Depends(obtener_usuario_actual),
+) -> dict:
+	if usuario.rol not in (RolUsuario.admin, RolUsuario.dueno):
+		raise HTTPException(
+			status_code=status.HTTP_403_FORBIDDEN,
+			detail="No tienes permisos para editar recorridos",
+		)
+
+	recorrido = await _obtener_recorrido_o_404(db, recorrido_id)
+	if usuario.rol == RolUsuario.dueno and recorrido.dueno_id != usuario.id:
+		raise HTTPException(
+			status_code=status.HTTP_403_FORBIDDEN,
+			detail="No tienes permisos para editar este recorrido",
+		)
+
+	if datos.nombre is not None:
+		recorrido.nombre = datos.nombre
+	if datos.descripcion is not None:
+		recorrido.descripcion = datos.descripcion
+	if datos.activo is not None:
+		recorrido.activo = datos.activo
+
+	try:
+		await db.commit()
+	except IntegrityError as error:
+		await db.rollback()
+		raise HTTPException(
+			status_code=status.HTTP_400_BAD_REQUEST,
+			detail="No se pudo actualizar el recorrido",
+		) from error
+
+	recorrido_actualizado = await _obtener_recorrido_o_404(db, recorrido.id)
+	return _respuesta_estandarizada(
+		_serializar_recorrido(recorrido_actualizado),
+		"Recorrido actualizado correctamente",
+	)
+
 
 
 @router.post("/", response_model=dict)

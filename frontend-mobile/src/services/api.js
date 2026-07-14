@@ -238,9 +238,10 @@ export const api = {
 
   // Rutas
   rutas: {
-    list: async () => {
+    list: async (recorridoId = null) => {
       try {
-        return extractPayload(await client.get('/rutas'));
+        const query = recorridoId ? `?recorrido_id=${recorridoId}` : '';
+        return extractPayload(await client.get(`/rutas${query}`));
       } catch (error) {
         return { ok: false, mensaje: error.message };
       }
@@ -259,11 +260,10 @@ export const api = {
         return { ok: false, mensaje: error.message };
       }
     },
-    update: async (id, recorridoId, nombre, descripcion, tipo) => {
+    update: async (id, nombre, descripcion, tipo) => {
       try {
         return extractPayload(
           await client.put(`/rutas/${id}`, {
-            recorrido_id: recorridoId,
             nombre,
             descripcion,
             tipo,
@@ -284,9 +284,12 @@ export const api = {
 
   // Paradas
   paradas: {
-    list: async (recorridoId = null) => {
+    list: async ({ recorridoId = null, rutaId = null } = {}) => {
       try {
-        const query = recorridoId ? `?recorrido_id=${recorridoId}` : '';
+        const params = [];
+        if (recorridoId) params.push(`recorrido_id=${recorridoId}`);
+        if (rutaId) params.push(`ruta_id=${rutaId}`);
+        const query = params.length ? `?${params.join('&')}` : '';
         return extractPayload(await client.get(`/paradas${query}`));
       } catch (error) {
         return { ok: false, mensaje: error.message };
@@ -297,6 +300,20 @@ export const api = {
         return extractPayload(
           await client.post('/paradas/', {
             ruta_id: rutaId,
+            nombre,
+            latitud,
+            longitud,
+            orden,
+          })
+        );
+      } catch (error) {
+        return { ok: false, mensaje: error.message };
+      }
+    },
+    update: async (id, { nombre, latitud, longitud, orden }) => {
+      try {
+        return extractPayload(
+          await client.put(`/paradas/${id}`, {
             nombre,
             latitud,
             longitud,

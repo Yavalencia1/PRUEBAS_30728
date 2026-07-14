@@ -4,6 +4,7 @@ import { createNativeStackNavigator } from '@react-navigation/native-stack';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { createDrawerNavigator, DrawerContentScrollView, DrawerItemList, DrawerItem } from '@react-navigation/drawer';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { ActivityIndicator, View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
@@ -31,6 +32,7 @@ import RecorridosScreen from '../screens/recorridos/RecorridosScreen';
 import RutasScreen from '../screens/rutas/RutasScreen';
 import PagosScreen from '../screens/pagos/PagosScreen';
 import ParadasScreen from '../screens/paradas/ParadasScreen';
+import GestionRutasScreen from '../screens/gestion/GestionRutasScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -46,6 +48,7 @@ const screenRegistry = {
   Recorridos: RecorridosScreen,
   Rutas: RutasScreen,
   Paradas: ParadasScreen,
+  GestionRutas: GestionRutasScreen,
   Alumnos: AlumnosScreen,
   Profile: ProfileScreen,
 };
@@ -82,6 +85,7 @@ function AuthStack() {
 function MainTabs() {
   const { usuario } = useAuth();
   const navigation = useNavigation();
+  const insets = useSafeAreaInsets();
   const primary = getPrimaryMenu(usuario?.rol);
 
   return (
@@ -104,8 +108,8 @@ function MainTabs() {
           backgroundColor: '#ffffff',
           borderTopColor: '#e2e8f0',
           borderTopWidth: 1,
-          height: 60,
-          paddingBottom: 8,
+          height: 60 + insets.bottom,
+          paddingBottom: insets.bottom,
         },
         headerStyle: {
           backgroundColor: '#ffffff',
@@ -191,6 +195,7 @@ function AppDrawer() {
           component={screenRegistry[item.name]}
           options={{
             title: item.label,
+            headerShown: item.tabContainer ? false : true,
             drawerIcon: ({ color, size }) => <Ionicons name={item.icon} color={color} size={size} />,
           }}
         />

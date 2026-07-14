@@ -132,7 +132,7 @@ export default function AlumnosScreen() {
 
   const fetchParadas = async (recorridoId) => {
     try {
-      const result = await api.paradas.list(recorridoId);
+      const result = await api.paradas.list({ recorridoId });
       if (result.ok && Array.isArray(result.data)) {
         setParadas(result.data);
         setFormData(prev => ({

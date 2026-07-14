@@ -51,7 +51,10 @@ def decodificar_token(token: str) -> dict[str, Any]:
 
 
 def obtener_payload_desde_token(token: str) -> dict[str, Any]:
-    return decodificar_token(token)
+    try:
+        return decodificar_token(token)
+    except JWTError as error:
+        raise ValueError("Token inválido o expirado") from error
 
 
 def obtener_subject_desde_token(token: str) -> str:

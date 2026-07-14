@@ -12,7 +12,7 @@ from app.models.ruta import Ruta, TipoRuta
 from app.models.parada import Parada
 from app.models.usuario import RolUsuario, Usuario
 from app.routers.auth import obtener_usuario_actual
-from app.schemas.ruta import RutaCrear
+from app.schemas.ruta import RutaCrear, RutaActualizar
 
 router = APIRouter(tags=["Rutas"])
 
@@ -87,6 +87,56 @@ async def obtener_ruta(
 			detail="No tienes permisos para ver esta ruta",
 		)
 	return _respuesta_estandarizada(_serializar_ruta(ruta), "Ruta obtenida correctamente")
+
+
+@router.put("/{ruta_id}", response_model=dict)
+async def actualizar_ruta(
+	ruta_id: int,
+	datos: RutaActualizar,
+	db: AsyncSession = Depends(get_db),
+	usuario: Usuario = Depends(obtener_usuario_actual),
+) -> dict:
+	if usuario.rol not in (RolUsuario.admin, RolUsuario.dueno):
+		raise HTTPException(
+			status_code=status.HTTP_403_FORBIDDEN,
+			detail="No tienes permisos para editar rutas",
+		)
+
+	ruta = await _obtener_ruta_o_404(db, ruta_id)
+	if usuario.rol == RolUsuario.dueno and ruta.recorrido and ruta.recorrido.dueno_id != usuario.id:
+		raise HTTPException(
+			status_code=status.HTTP_403_FORBIDDEN,
+			detail="No tienes permisos para editar esta ruta",
+		)
+
+	if datos.nombre is not None:
+		ruta.nombre = datos.nombre
+	if datos.descripcion is not None:
+		ruta.descripcion = datos.descripcion
+	if datos.tipo is not None:
+		try:
+			ruta.tipo = TipoRuta(datos.tipo)
+		except ValueError as error:
+			raise HTTPException(
+				status_code=status.HTTP_400_BAD_REQUEST,
+				detail="Tipo de ruta inválido",
+			) from error
+
+	try:
+		await db.commit()
+	except IntegrityError as error:
+		await db.rollback()
+		raise HTTPException(
+			status_code=status.HTTP_400_BAD_REQUEST,
+			detail="No se pudo actualizar la ruta",
+		) from error
+
+	ruta_actualizada = await _obtener_ruta_o_404(db, ruta.id)
+	return _respuesta_estandarizada(
+		_serializar_ruta(ruta_actualizada),
+		"Ruta actualizada correctamente",
+	)
+
 
 
 @router.post("/", response_model=dict)
