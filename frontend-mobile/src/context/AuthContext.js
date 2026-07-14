@@ -1,35 +1,37 @@
 import React, { createContext, useState, useEffect, useCallback } from 'react';
-import AsyncStorage from '@react-native-async-storage/async-storage';
-import { api } from '../services/api';
+import { api, setUnauthorizedHandler } from '../services/api';
+import { tokenStorage } from '../services/secureStore';
 
 export const AuthContext = createContext();
 
 export function AuthProvider({ children }) {
   const [usuario, setUsuario] = useState(null);
+  const [token, setToken] = useState(null);
   const [isLoading, setIsLoading] = useState(true);
   const [isLoggedIn, setIsLoggedIn] = useState(false);
 
   // Verificar sesión persistida al arrancar la app
   useEffect(() => {
     bootstrapAsync();
+    setUnauthorizedHandler(() => {
+      setUsuario(null);
+      setToken(null);
+      setIsLoggedIn(false);
+    });
   }, []);
 
   const bootstrapAsync = async () => {
     try {
       setIsLoading(true);
-      const token = await AsyncStorage.getItem('access_token');
-      const usuarioStr = await AsyncStorage.getItem('usuario');
+      const accessToken = await tokenStorage.getAccessToken();
+      const usuarioData = await tokenStorage.getUser();
 
-      if (token && usuarioStr) {
-        try {
-          const usuarioData = JSON.parse(usuarioStr);
-          setUsuario(usuarioData);
-          setIsLoggedIn(true);
-        } catch {
-          // Datos corruptos → limpiar
-          await AsyncStorage.removeItem('access_token');
-          await AsyncStorage.removeItem('usuario');
-        }
+      if (accessToken && usuarioData) {
+        setUsuario(usuarioData);
+        setToken(accessToken);
+        setIsLoggedIn(true);
+      } else {
+        await tokenStorage.clear();
       }
     } catch (error) {
       console.error('[AuthContext] Error al verificar sesión:', error);
@@ -49,6 +51,7 @@ export function AuthProvider({ children }) {
 
       if (result.ok && result.data) {
         setUsuario(result.data.usuario);
+        setToken(result.data.tokens.access_token);
         setIsLoggedIn(true);
         return { success: true, usuario: result.data.usuario };
       } else {
@@ -105,13 +108,14 @@ export function AuthProvider({ children }) {
   }, []);
 
   /**
-   * Cerrar sesión: limpia AsyncStorage y resetea el estado.
+   * Cerrar sesión: limpia secure-store y resetea el estado.
    */
   const logout = useCallback(async () => {
     try {
       setIsLoading(true);
       await api.auth.logout();
       setUsuario(null);
+      setToken(null);
       setIsLoggedIn(false);
     } catch (error) {
       console.error('[AuthContext] Error al hacer logout:', error);
@@ -122,6 +126,7 @@ export function AuthProvider({ children }) {
 
   const value = {
     usuario,      // Objeto del usuario autenticado (nombre, email, rol, id, …)
+    token,        // JWT de acceso (para WebSocket del conductor, etc.)
     isLoading,    // true mientras se verifica sesión o se procesa login/logout
     isLoggedIn,   // true cuando hay sesión válida
     login,

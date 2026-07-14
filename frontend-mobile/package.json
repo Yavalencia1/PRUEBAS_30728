@@ -1,7 +1,7 @@
 {
-  "name": "mobile",
+  "name": "routekids-mobile",
   "version": "1.0.0",
-  "main": "index.js",
+  "main": "expo/AppEntry.js",
   "scripts": {
     "start": "expo start",
     "android": "expo start --android",
@@ -9,15 +9,18 @@
     "web": "expo start --web"
   },
   "dependencies": {
+    "@react-navigation/bottom-tabs": "^7.0.0",
     "@react-navigation/native": "^7.0.0",
     "@react-navigation/native-stack": "^7.0.0",
     "axios": "^1.7.2",
     "expo": "~54.0.0",
     "expo-constants": "~17.0.0",
+    "expo-location": "~18.0.0",
     "expo-secure-store": "~14.0.0",
-    "expo-status-bar": "~3.0.0",
+    "expo-task-manager": "~13.0.0",
     "react": "19.0.0",
     "react-native": "0.78.0",
+    "react-native-maps": "^1.0.0",
     "react-native-safe-area-context": "~5.2.0",
     "react-native-screens": "~4.4.0"
   },

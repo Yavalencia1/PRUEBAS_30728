@@ -1,6 +1,6 @@
 /**
  * Validadores de campos de formulario.
- * Deben coincidir con las reglas del backend (app/schemas/auth.py).
+ * Coinciden con las reglas del backend (app/schemas/auth.py).
  */
 
 const NAME_RE = /^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$/;

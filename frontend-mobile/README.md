@@ -2,6 +2,8 @@
 
 Carpeta del frontend móvil migrado de Flutter a React Native con Expo.
 
+> **Estado actual:** Expo **SDK 54** (React 19 / React Native 0.78). Cliente HTTP con **Axios** + refresco automático de JWT, tokens en **expo-secure-store**, y tema de diseño centralizado en `src/theme/theme.js`. El host del backend se auto-detecta (IP LAN en Expo Go) desde `src/config.js`.
+
 ## Estructura del Proyecto
 
 ```
@@ -33,23 +35,22 @@ frontend-mobile/
         └── useLerp.js             ← DEV 3 (Anahi) - pendiente
 ```
 
-## Dependencias a Instalar (proyecto Expo)
+## Dependencias (Expo SDK 54)
+
+Todas las dependencias ya están en `package.json`. Solo instala:
 
 ```bash
-# Crear proyecto (Dev 1 - Carlos)
-npx create-expo-app@latest frontend-mobile --template blank
+npm install
+```
 
-# GPS en segundo plano (Dev 4 - Voncho)
-npx expo install expo-location expo-task-manager
+Paquetes clave: `expo` (SDK 54), `axios`, `expo-secure-store`, `expo-location`,
+`expo-task-manager`, `react-native-maps`, `@react-navigation/native`,
+`@react-navigation/native-stack`, `@react-navigation/bottom-tabs`.
 
-# Mapas OSM (Dev 3 - Anahi)
-npx expo install react-native-maps
+Para levantar:
 
-# Navegación (Dev 2 - Jerson)
-npx expo install @react-navigation/native @react-navigation/stack @react-navigation/bottom-tabs
-
-# Almacenamiento seguro de tokens (Dev 1 - Carlos)
-npx expo install expo-secure-store
+```bash
+npm start   # Expo Go (escanea el QR)
 ```
 
 ## Archivos del Desarrollador 4 (Voncho)

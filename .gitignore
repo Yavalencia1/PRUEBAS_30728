@@ -29,6 +29,10 @@ build/
 # macOS
 .DS_Store
 
+# Node / Expo
+node_modules/
+.expo/
+
 # Base de datos local
 postgres_data/
-VersionMovil/Routekids_V3.0.1/
+Routekids_V3.0.1/

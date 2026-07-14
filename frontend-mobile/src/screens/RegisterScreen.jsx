@@ -11,6 +11,14 @@ import {
   Platform,
 } from 'react-native';
 import { useAuth } from '../context/AuthContext';
+import {
+  validateNombre,
+  validateApellido,
+  validateEmail,
+  validateTelefono,
+  validatePassword,
+  validateConfirmarPassword,
+} from '../utils/validation';
 
 // ─── Selector de rol táctil (reemplaza Picker nativo de RN ─────────────────────
 // react-native eliminó <Picker> del core. Usamos botones táctiles.
@@ -88,28 +96,17 @@ export default function RegisterScreen({ navigation }) {
   const handleRegister = useCallback(async () => {
     setErrorMsg(null);
 
-    if (!formData.nombre.trim()) {
-      setErrorMsg('Por favor, ingresa tu nombre.');
-      return;
-    }
-    if (!formData.apellido.trim()) {
-      setErrorMsg('Por favor, ingresa tu apellido.');
-      return;
-    }
-    if (!formData.email.trim()) {
-      setErrorMsg('Por favor, ingresa tu correo electrónico.');
-      return;
-    }
-    if (formData.password.length < 6) {
-      setErrorMsg('La contraseña debe tener al menos 6 caracteres.');
-      return;
-    }
-    if (formData.password !== formData.confirmar_password) {
-      setErrorMsg('Las contraseñas no coinciden.');
-      return;
-    }
-    if (!/^\d{10}$/.test(formData.telefono)) {
-      setErrorMsg('El teléfono debe tener exactamente 10 dígitos.');
+    const errores = [
+      validateNombre(formData.nombre),
+      validateApellido(formData.apellido),
+      validateEmail(formData.email),
+      validateTelefono(formData.telefono),
+      validatePassword(formData.password),
+      validateConfirmarPassword(formData.password, formData.confirmar_password),
+    ].filter(Boolean);
+
+    if (errores.length > 0) {
+      setErrorMsg(errores[0]);
       return;
     }
 

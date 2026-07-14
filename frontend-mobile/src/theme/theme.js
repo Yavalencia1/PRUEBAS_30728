@@ -1,44 +1,51 @@
 /**
- * Sistema de Diseño RouteKids
- * Paleta de colores, tipografía y estilos globales para React Native.
+ * Sistema de Diseño RouteKids (tema índigo)
+ * Paleta, tipografía y estilos globales centralizados para React Native.
  */
 
 export const Colors = {
-  // Marca / Primario
-  primary: '#1E88E5',
-  primaryDark: '#1565C0',
-  primaryLight: '#64B5F6',
-  primaryContrast: '#FFFFFF',
+  // Marca / Primario (índigo RouteKids)
+  primary: '#6366f1',
+  primaryDark: '#4f46e5',
+  primaryLight: '#a5b4fc',
+  primaryContrast: '#ffffff',
+  primarySurface: '#eef2ff',
 
-  // Acento / Secundario
-  secondary: '#26A69A',
-  secondaryDark: '#00897B',
-  accent: '#FFB300',
+  // Acentos por módulo (usados en el menú por rol)
+  cyan: '#06b6d4',
+  teal: '#14b8a6',
+  green: '#10b981',
+  amber: '#f59e0b',
+  red: '#ef4444',
+  pink: '#ec4899',
+  orange: '#f97316',
+  violet: '#8b5cf6',
+  blue: '#3b82f6',
 
   // Fondos y superficies
-  background: '#F4F7FB',
-  surface: '#FFFFFF',
-  surfaceAlt: '#EAF2FB',
+  background: '#f8f9fa',
+  surface: '#ffffff',
+  surfaceAlt: '#f7fafc',
 
   // Texto
-  text: '#1A2433',
-  textMuted: '#6B7787',
-  textInverse: '#FFFFFF',
+  text: '#1a202c',
+  textMuted: '#718096',
+  textInverse: '#ffffff',
 
   // Estados
-  success: '#2E9E5B',
-  successLight: '#E6F6EC',
-  error: '#E53935',
-  errorLight: '#FDECEC',
-  warning: '#F5A623',
-  warningLight: '#FDF3E3',
+  success: '#38a169',
+  successLight: '#e6f6ec',
+  error: '#e53e3e',
+  errorLight: '#fed7d7',
+  warning: '#ed8936',
+  warningLight: '#feebc8',
 
   // Bordes / divisores
-  border: '#DCE3EC',
-  borderFocus: '#1E88E5',
+  border: '#cbd5e0',
+  borderFocus: '#6366f1',
 
   // Overlay
-  overlay: 'rgba(26, 36, 51, 0.45)',
+  overlay: 'rgba(26, 32, 44, 0.45)',
 };
 
 export const Fonts = {
@@ -75,17 +82,14 @@ export const Radius = {
 
 export const Shadows = {
   card: {
-    shadowColor: '#1A2433',
-    shadowOffset: { width: 0, height: 4 },
-    shadowOpacity: 0.12,
-    shadowRadius: 12,
-    elevation: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 8,
+    elevation: 3,
   },
 };
 
-/**
- * Estilos globales reutilizables construidos con StyleSheet.
- */
 import { StyleSheet } from 'react-native';
 
 export const GlobalStyles = StyleSheet.create({
@@ -115,42 +119,21 @@ export const GlobalStyles = StyleSheet.create({
     color: Colors.textMuted,
   },
   input: {
-    height: 52,
-    borderWidth: 1,
-    borderColor: Colors.border,
-    borderRadius: Radius.md,
-    paddingHorizontal: Spacing.md,
+    flex: 1,
+    paddingVertical: 12,
+    paddingHorizontal: 8,
     fontSize: FontSizes.md,
     color: Colors.text,
-    backgroundColor: Colors.surface,
-  },
-  inputFocused: {
-    borderColor: Colors.borderFocus,
   },
   buttonPrimary: {
-    height: 52,
-    borderRadius: Radius.md,
     backgroundColor: Colors.primary,
+    paddingVertical: 14,
+    borderRadius: Radius.md,
     alignItems: 'center',
     justifyContent: 'center',
   },
   buttonPrimaryText: {
     color: Colors.primaryContrast,
-    fontSize: FontSizes.md,
-    fontWeight: '700',
-    fontFamily: Fonts.bold,
-  },
-  buttonSecondary: {
-    height: 52,
-    borderRadius: Radius.md,
-    backgroundColor: Colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderWidth: 1,
-    borderColor: Colors.primary,
-  },
-  buttonSecondaryText: {
-    color: Colors.primary,
     fontSize: FontSizes.md,
     fontWeight: '700',
     fontFamily: Fonts.bold,

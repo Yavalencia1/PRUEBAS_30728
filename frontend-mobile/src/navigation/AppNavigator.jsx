@@ -5,6 +5,7 @@ import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import { ActivityIndicator, View, Text } from 'react-native';
 import { useAuth } from '../context/AuthContext';
 import { getRoleMenu } from './RoleMenu';
+import { Colors } from '../theme/theme';
 
 // ─── Pantallas Auth ───────────────────────────────────────────────────────────
 import LoginScreen    from '../screens/LoginScreen';
@@ -65,7 +66,7 @@ function MainTabNavigator({ usuario }) {
         tabBarIcon:       ({ color }) => (
           <Text style={{ fontSize: 18 }}>{getTabIcon(route.name)}</Text>
         ),
-        tabBarActiveTintColor:   '#6366f1',
+        tabBarActiveTintColor:   Colors.primary,
         tabBarInactiveTintColor: '#a0aec0',
         tabBarStyle: {
           backgroundColor: '#ffffff',
