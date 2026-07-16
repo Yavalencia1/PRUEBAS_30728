@@ -37,3 +37,10 @@ frontend-mobile/dist/
 # Base de datos local
 postgres_data/
 Routekids_V3.0.1/
+
+# Binaries / secrets from desktop distributions (merged from main)
+**/routekids.db
+**/*.so
+**/*.dll
+**/*.dat
+RouteKids_Desktop_V1.0.2/contras.txt

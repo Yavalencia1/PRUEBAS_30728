@@ -26,13 +26,6 @@ AsyncSessionLocal = async_sessionmaker(
 )
 
 
-async def init_db() -> None:
-    from app.core.database import Base as ModelsBase
-
-    async with engine.begin() as conn:
-        await conn.run_sync(ModelsBase.metadata.create_all)
-
-
 async def get_db() -> AsyncGenerator[AsyncSession, None]:
     async with AsyncSessionLocal() as session:
         try:
