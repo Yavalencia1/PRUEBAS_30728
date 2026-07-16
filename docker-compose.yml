@@ -27,6 +27,7 @@ services:
       APP_ENV: development
       APP_DEBUG: "true"
       SECRET_KEY: JADE2307
+      CORS_ORIGINS: ${CORS_ORIGINS}
     depends_on:
       - db
     ports:

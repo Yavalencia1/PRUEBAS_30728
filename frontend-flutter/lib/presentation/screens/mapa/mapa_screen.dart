@@ -159,7 +159,7 @@ class MapaController extends StateNotifier<MapaState> {
   }
 
   Uri _buildWebSocketUri(String sessionId) {
-    final baseUri = Uri.parse('ws://localhost:8000/ws/gps/$sessionId');
+    final baseUri = Uri.parse('${ApiConfig.wsBaseUrl}/ws/gps/$sessionId');
     if (accessToken == null || accessToken!.isEmpty) {
       return baseUri;
     }

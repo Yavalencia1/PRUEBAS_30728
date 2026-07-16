@@ -14,8 +14,9 @@ import Constants from 'expo-constants';
 
 export const API_PORT = 8000;
 
-// Edita aquí para forzar un host manual (deja null para auto-detección).
-export const API_HOST = null;
+// Host manual forzado. Se inyecta desde expo.extra.apiHost (app.config.js lee
+// process.env.API_HOST). Vacío/null => auto-detección de la IP LAN (Expo Go).
+export const API_HOST = Constants.expoConfig?.extra?.apiHost || null;
 
 function deriveHost() {
   // 1. Override manual explícito

@@ -408,7 +408,7 @@ class MiRutaController extends StateNotifier<MiRutaState> {
   }
 
   Uri _buildWebSocketUri(String sessionId) {
-    final baseUri = Uri.parse('ws://localhost:8000/ws/conductor/$sessionId');
+    final baseUri = Uri.parse('${ApiConfig.wsBaseUrl}/ws/conductor/$sessionId');
     if (accessToken.isEmpty) {
       return baseUri;
     }
