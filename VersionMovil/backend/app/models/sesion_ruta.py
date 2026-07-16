@@ -4,7 +4,7 @@ from __future__ import annotations
 from datetime import datetime
 from enum import Enum
 
-from sqlalchemy import DateTime, Enum as SAEnum, ForeignKey, Index, Integer, func, text
+from sqlalchemy import DateTime, Enum as SAEnum, ForeignKey, Index, Integer, func
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.core.database import Base
@@ -23,7 +23,6 @@ class SesionRuta(Base):
             "uq_sesiones_ruta_conductor_en_curso",
             "conductor_id",
             unique=True,
-            postgresql_where=text("estado = 'en_curso'"),
         ),
     )
 
