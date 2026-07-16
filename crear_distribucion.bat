@@ -10,11 +10,11 @@ if not exist "%DIST_DIR%" mkdir "%DIST_DIR%"
 
 echo.
 echo Compilando aplicacion web (Frontend React)...
-cd frontend
+cd frontend-web
 call npm run build
 cd ..
-if not exist "%DIST_DIR%\frontend" mkdir "%DIST_DIR%\frontend"
-xcopy /E /I /Y "frontend\dist\*" "%DIST_DIR%\frontend\" >nul
+if not exist "%DIST_DIR%\frontend-web" mkdir "%DIST_DIR%\frontend-web"
+xcopy /E /I /Y "frontend-web\dist\*" "%DIST_DIR%\frontend-web\" >nul
 
 echo.
 echo Copiando servidor (Backend) y Docker...

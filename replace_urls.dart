@@ -1,7 +1,7 @@
 import 'dart:io';
 
 void main() {
-  final targetDir = Directory('c:/Users/Anahi/PRUEBAS_30728/frontend/lib');
+  final targetDir = Directory('c:/Users/Anahi/PRUEBAS_30728/frontend-flutter/lib');
   final urlPattern = RegExp(r"'http://(?:localhost|127\.0\.0\.1):8000/api/v1(.*?)'");
   final importStatement = "import 'package:frontend/core/config/api_config.dart';";
 

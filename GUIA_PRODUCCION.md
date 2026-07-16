@@ -24,6 +24,6 @@ Si quieres hacer cambios, sigue estos pasos:
 5. ¡Listo! Tu carpeta `RouteKids_Produccion` se habrá actualizado automáticamente con los nuevos cambios (y sin borrar tu base de datos).
 
 ## 4. Diferencia entre Entornos (ApiConfig)
-Creamos una clase en `frontend/lib/core/config/api_config.dart`.
+Creamos una clase en `frontend-flutter/lib/core/config/api_config.dart`.
 Esta clase detecta automáticamente si estás trabajando en tu computadora (Debug) o si el cliente ya está usando la app terminada (Release).
 * Las URLs de tu código usan `${ApiConfig.baseUrl}` en lugar de `localhost`.

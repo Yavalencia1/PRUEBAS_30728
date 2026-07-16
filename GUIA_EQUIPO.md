@@ -34,9 +34,9 @@ Asegúrate de tener instalado:
 ### Pasos para levantar en Desarrollo (con Hot-Reload)
 1. Abre Docker Desktop.
 2. Abre la consola en la carpeta raíz del proyecto `PRUEBAS_30728`.
-3. Navega a la carpeta `frontend/` e instala las dependencias de Node:
+3. Navega a la carpeta `frontend-web/` e instala las dependencias de Node:
    ```bash
-   cd frontend
+   cd frontend-web
    npm install
    cd ..
    ```
@@ -55,9 +55,9 @@ Si necesitan compilar los archivos estáticos finales y generar el paquete distr
 Cypress nos permitirá automatizar y validar las funcionalidades clave del sistema web.
 
 ### Instalación de Cypress
-Instala Cypress en el directorio `frontend/` como dependencia de desarrollo:
+Instala Cypress en el directorio `frontend-web/` como dependencia de desarrollo:
 ```bash
-cd frontend
+cd frontend-web
 npm install cypress --save-dev
 ```
 

@@ -20,10 +20,10 @@ echo Iniciando servidor web para el Frontend...
 echo ========================================================
 
 :: Inicia el servidor de desarrollo en modo desarrollo (si existe package.json) o el servidor estático en producción
-if exist "frontend\package.json" (
-    start "RouteKids Frontend (Dev)" cmd /k "cd frontend && npm run dev"
+if exist "frontend-web\package.json" (
+    start "RouteKids Frontend (Dev)" cmd /k "cd frontend-web && npm run dev"
 ) else (
-    start "RouteKids Frontend (Prod)" cmd /c "python -m http.server 3000 --directory frontend"
+    start "RouteKids Frontend (Prod)" cmd /c "python -m http.server 3000 --directory frontend-web"
 )
 
 :: Espera 2 segundos y abre la aplicación en el navegador predeterminado
