@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:frontend/controlador/pagos_service.dart';
 import 'package:frontend/modelo/pago_modelo.dart';
+import 'package:frontend/core/utils/top_snackbar.dart';
 
 final pagosServiceProvider = Provider<PagosService>((ref) {
   return PagosService();
@@ -80,7 +81,6 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
   }
 
   Future<void> _marcarPagado(PagoModelo pago) async {
-    final messenger = ScaffoldMessenger.of(context);
     try {
       await ref
           .read(pagosServiceProvider)
@@ -88,19 +88,18 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
             pagoId: pago.id,
             accessToken: widget.accessToken,
           );
-      messenger.showSnackBar(
-        SnackBar(content: Text('Pago #${pago.id} marcado como pagado')),
-      );
+      if (mounted) {
+        TopSnackBar.showSuccess(context, 'Pago #${pago.id} marcado como pagado');
+      }
       await _refrescar();
     } catch (error) {
-      messenger.showSnackBar(
-        SnackBar(content: Text('Error al actualizar pago: $error')),
-      );
+      if (mounted) {
+        TopSnackBar.showError(context, 'Error al actualizar pago: $error');
+      }
     }
   }
 
   Future<void> _marcarNoPagado(PagoModelo pago) async {
-    final messenger = ScaffoldMessenger.of(context);
     try {
       await ref
           .read(pagosServiceProvider)
@@ -108,32 +107,30 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
             pagoId: pago.id,
             accessToken: widget.accessToken,
           );
-      messenger.showSnackBar(
-        SnackBar(content: Text('Pago #${pago.id} marcado como no pagado')),
-      );
+      if (mounted) {
+        TopSnackBar.showSuccess(context, 'Pago #${pago.id} marcado como pendiente');
+      }
       await _refrescar();
     } catch (error) {
-      messenger.showSnackBar(
-        SnackBar(content: Text('Error al actualizar pago: $error')),
-      );
+      if (mounted) {
+        TopSnackBar.showError(context, 'Error al actualizar pago: $error');
+      }
     }
   }
 
   Future<void> _eliminarPago(PagoModelo pago) async {
-    final messenger = ScaffoldMessenger.of(context);
     final confirm = await showDialog<bool>(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Confirmar eliminación'),
-        content: Text(
-          '¿Deseas eliminar el pago #${pago.id}? Esta acción no se puede deshacer.',
-        ),
+        title: const Text('Eliminar Pago'),
+        content: Text('¿Seguro que deseas eliminar the pago #${pago.id}?'),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(false),
             child: const Text('Cancelar'),
           ),
-          TextButton(
+          FilledButton(
+            style: FilledButton.styleFrom(backgroundColor: Colors.red),
             onPressed: () => Navigator.of(ctx).pop(true),
             child: const Text('Eliminar'),
           ),
@@ -147,14 +144,14 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
       await ref
           .read(pagosServiceProvider)
           .eliminarPago(pagoId: pago.id, accessToken: widget.accessToken);
-      messenger.showSnackBar(
-        SnackBar(content: Text('Pago #${pago.id} eliminado')),
-      );
+      if (mounted) {
+        TopSnackBar.showSuccess(context, 'Pago #${pago.id} eliminado');
+      }
       await _refrescar();
     } catch (error) {
-      messenger.showSnackBar(
-        SnackBar(content: Text('Error al eliminar pago: $error')),
-      );
+      if (mounted) {
+        TopSnackBar.showError(context, 'Error al eliminar pago: $error');
+      }
     }
   }
 
@@ -189,7 +186,6 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
   Widget build(BuildContext context) {
     if (!_puedeVerPagos) {
       return Scaffold(
-        backgroundColor: Colors.grey.shade50,
         body: const Center(
           child: Padding(
             padding: EdgeInsets.all(24.0),
@@ -205,7 +201,6 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
     final asyncPagos = ref.watch(pagosProvider(_query));
 
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
       body: RefreshIndicator(
         onRefresh: _refrescar,
         child: asyncPagos.when(
@@ -279,7 +274,6 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
                 const SizedBox(height: 24),
                 if (pagosFiltrados.isEmpty)
                   Card(
-                    color: Colors.white,
                     elevation: 1,
                     shape: RoundedRectangleBorder(
                       borderRadius: BorderRadius.circular(16),
@@ -295,7 +289,6 @@ class _PagosScreenState extends ConsumerState<PagosScreen> {
                       padding: const EdgeInsets.only(bottom: 16.0),
                       child: Card(
                         elevation: 2,
-                        color: Colors.white,
                         shape: RoundedRectangleBorder(
                           borderRadius: BorderRadius.circular(16),
                         ),

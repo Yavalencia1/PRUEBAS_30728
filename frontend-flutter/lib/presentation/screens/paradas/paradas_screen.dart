@@ -275,18 +275,18 @@ class _ParadasScreenState extends State<ParadasScreen> {
                             ],
                           ),
                           const SizedBox(height: 12),
-                          const Align(
+                           Align(
                             alignment: Alignment.centerLeft,
                             child: Text(
                               'Selecciona la ubicación en el mapa:',
-                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Colors.black54),
+                              style: TextStyle(fontWeight: FontWeight.bold, fontSize: 13, color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6)),
                             ),
                           ),
                           const SizedBox(height: 8),
                           Container(
                             height: 220,
                             decoration: BoxDecoration(
-                              border: Border.all(color: Colors.grey.shade300),
+                              border: Border.all(color: Theme.of(context).dividerColor),
                               borderRadius: BorderRadius.circular(12),
                             ),
                             child: ClipRRect(
@@ -416,7 +416,6 @@ class _ParadasScreenState extends State<ParadasScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
       body: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Column(
@@ -478,7 +477,7 @@ class _ParadasScreenState extends State<ParadasScreen> {
                                 child: ListTile(
                                   contentPadding: const EdgeInsets.all(16),
                                   leading: CircleAvatar(
-                                    backgroundColor: Colors.blue.shade100,
+                                    backgroundColor: Colors.blue.withOpacity(0.15),
                                     child: const Icon(
                                       Icons.location_on,
                                       color: Color(0xFF534AB7),
@@ -500,8 +499,8 @@ class _ParadasScreenState extends State<ParadasScreen> {
                                               const EdgeInsets.only(top: 4),
                                           child: Text(
                                             'Ruta: ${parada.rutaNombre}',
-                                            style: const TextStyle(
-                                              color: Colors.black54,
+                                            style: TextStyle(
+                                              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
                                             ),
                                           ),
                                         ),
@@ -510,8 +509,8 @@ class _ParadasScreenState extends State<ParadasScreen> {
                                             const EdgeInsets.only(top: 4),
                                         child: Text(
                                           'Lat/Lng: ${parada.latitud.toStringAsFixed(5)}, ${parada.longitud.toStringAsFixed(5)}',
-                                          style: const TextStyle(
-                                            color: Colors.black54,
+                                          style: TextStyle(
+                                            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
                                           ),
                                         ),
                                       ),
@@ -520,8 +519,8 @@ class _ParadasScreenState extends State<ParadasScreen> {
                                             const EdgeInsets.only(top: 4),
                                         child: Text(
                                           'Orden: ${parada.orden}',
-                                          style: const TextStyle(
-                                            color: Colors.black54,
+                                          style: TextStyle(
+                                            color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
                                           ),
                                         ),
                                       ),

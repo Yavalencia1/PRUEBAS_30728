@@ -1,6 +1,4 @@
 import 'package:flutter/material.dart';
-import 'package:http/http.dart' as http;
-import 'dart:convert';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:frontend/presentation/layouts/main_layout.dart';
 import 'package:frontend/presentation/screens/dashboard/dashboard_screen.dart';
@@ -14,6 +12,10 @@ import 'package:frontend/presentation/screens/asistencia/asistencia_screen.dart'
 import 'package:frontend/presentation/screens/notificaciones/notificaciones_screen.dart';
 import 'package:frontend/presentation/screens/auth/login_screen.dart';
 import 'package:frontend/vista/pagos_screen.dart';
+import 'package:frontend/presentation/screens/usuarios/administracion_usuarios_screen.dart';
+import 'package:frontend/presentation/screens/perfil/perfil_admin_screen.dart';
+import 'package:frontend/presentation/screens/perfil/perfil_generico_screen.dart';
+import 'package:frontend/core/theme/theme_provider.dart';
 
 import 'dart:io';
 import 'package:flutter/foundation.dart';
@@ -40,16 +42,87 @@ void main() async {
   runApp(const ProviderScope(child: RouteKidsApp()));
 }
 
-class RouteKidsApp extends StatelessWidget {
+class RouteKidsApp extends ConsumerWidget {
   const RouteKidsApp({super.key});
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final themeMode = ref.watch(themeProvider);
+
     return MaterialApp(
       title: 'RouteKids',
+      themeMode: themeMode,
       theme: ThemeData(
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.blue),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.blue,
+          brightness: Brightness.light,
+        ),
         useMaterial3: true,
+        scaffoldBackgroundColor: const Color(0xFFF9FAFB),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Colors.white,
+          foregroundColor: Colors.black,
+          elevation: 0,
+          iconTheme: IconThemeData(color: Colors.black87),
+        ),
+        cardTheme: const CardThemeData(
+          color: Colors.white,
+          elevation: 2,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(16))),
+        ),
+        dialogTheme: const DialogThemeData(
+          backgroundColor: Colors.white,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(16))),
+        ),
+        dividerTheme: const DividerThemeData(
+          color: Colors.black12,
+          thickness: 1,
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: Colors.grey.shade50,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+        listTileTheme: const ListTileThemeData(
+          iconColor: Colors.black54,
+          textColor: Colors.black87,
+        ),
+      ),
+      darkTheme: ThemeData(
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: Colors.blue,
+          brightness: Brightness.dark,
+        ),
+        useMaterial3: true,
+        scaffoldBackgroundColor: const Color(0xFF121212),
+        appBarTheme: const AppBarTheme(
+          backgroundColor: Color(0xFF1E1E1E),
+          foregroundColor: Colors.white,
+          elevation: 0,
+          iconTheme: IconThemeData(color: Colors.white),
+        ),
+        cardTheme: const CardThemeData(
+          color: Color(0xFF1E1E1E),
+          elevation: 2,
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(16))),
+        ),
+        dialogTheme: const DialogThemeData(
+          backgroundColor: Color(0xFF1E1E1E),
+          shape: RoundedRectangleBorder(borderRadius: BorderRadius.all(Radius.circular(16))),
+        ),
+        dividerTheme: const DividerThemeData(
+          color: Colors.white12,
+          thickness: 1,
+        ),
+        inputDecorationTheme: InputDecorationTheme(
+          filled: true,
+          fillColor: Colors.white10,
+          border: OutlineInputBorder(borderRadius: BorderRadius.circular(8)),
+        ),
+        listTileTheme: const ListTileThemeData(
+          iconColor: Colors.white70,
+          textColor: Colors.white,
+        ),
       ),
       home: const LoginPage(),
     );
@@ -108,9 +181,7 @@ class _HomePageState extends State<HomePage> {
                 usuario: widget.usuario,
               );
             case 6:
-              return const Center(
-                child: Text('Perfil de Dueño', style: TextStyle(fontSize: 20)),
-              );
+              return PerfilGenericoScreen(usuario: widget.usuario);
             default:
               return const DashboardScreen();
           }
@@ -127,12 +198,7 @@ class _HomePageState extends State<HomePage> {
                 usuario: widget.usuario,
               );
             case 2:
-              return const Center(
-                child: Text(
-                  'Perfil del Conductor',
-                  style: TextStyle(fontSize: 20),
-                ),
-              );
+              return PerfilGenericoScreen(usuario: widget.usuario);
             default:
               return MiRutaScreen(
                 accessToken: widget.accessToken,
@@ -142,23 +208,24 @@ class _HomePageState extends State<HomePage> {
         case 'admin':
           switch (_currentIndex) {
             case 0:
-              return MapaScreen(accessToken: widget.accessToken);
+              return AdministracionUsuariosScreen(
+                accessToken: widget.accessToken,
+                usuario: widget.usuario,
+              );
             case 1:
               return AsistenciaScreen(
                 accessToken: widget.accessToken,
                 usuario: widget.usuario,
               );
             case 2:
-              return PagosScreen(
+              return PerfilAdminScreen(
+                usuario: widget.usuario,
+              );
+            default:
+              return AdministracionUsuariosScreen(
                 accessToken: widget.accessToken,
                 usuario: widget.usuario,
               );
-            case 3:
-              return const Center(
-                child: Text('Perfil de Admin', style: TextStyle(fontSize: 20)),
-              );
-            default:
-              return MapaScreen(accessToken: widget.accessToken);
           }
         case 'padre':
         default:
@@ -181,9 +248,7 @@ class _HomePageState extends State<HomePage> {
                 accessToken: widget.accessToken,
               );
             case 4:
-              return const Center(
-                child: Text('Perfil de Padre', style: TextStyle(fontSize: 20)),
-              );
+              return PerfilGenericoScreen(usuario: widget.usuario);
             default:
               return MapaScreen(accessToken: widget.accessToken);
           }

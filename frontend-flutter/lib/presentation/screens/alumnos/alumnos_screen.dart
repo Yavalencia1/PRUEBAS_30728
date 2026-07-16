@@ -456,7 +456,6 @@ class _AlumnosScreenState extends State<AlumnosScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
       body: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Column(
@@ -509,7 +508,7 @@ class _AlumnosScreenState extends State<AlumnosScreen> {
                             child: SingleChildScrollView(
                               scrollDirection: Axis.horizontal,
                               child: DataTable(
-                                headingRowColor: WidgetStateProperty.resolveWith((states) => Colors.grey.shade200),
+                                headingRowColor: WidgetStateProperty.resolveWith((states) => Theme.of(context).dividerColor.withOpacity(0.05)),
                                 dataRowMaxHeight: 65,
                                 columns: const [
                                   DataColumn(label: Text('ID', style: TextStyle(fontWeight: FontWeight.bold))),

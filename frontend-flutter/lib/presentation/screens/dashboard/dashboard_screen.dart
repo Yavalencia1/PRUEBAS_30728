@@ -64,7 +64,6 @@ class DashboardScreen extends ConsumerWidget {
     final asyncDashboardData = ref.watch(dashboardProvider);
 
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
       body: asyncDashboardData.when(
         loading: () => const Center(child: CircularProgressIndicator()),
         error: (error, stack) => Center(
@@ -138,7 +137,6 @@ class DashboardScreen extends ConsumerWidget {
 
                 Card(
                   elevation: 2,
-                  color: Colors.white,
                   shape: RoundedRectangleBorder(
                     borderRadius: BorderRadius.circular(12),
                   ),
@@ -147,16 +145,16 @@ class DashboardScreen extends ConsumerWidget {
                     child: Column(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        const Row(
+                        Row(
                           children: [
-                            Icon(Icons.payment, color: Color(0xFF534AB7)),
-                            SizedBox(width: 8),
+                            const Icon(Icons.payment, color: Color(0xFF534AB7)),
+                            const SizedBox(width: 8),
                             Text(
                               'Últimos Pagos Pendientes',
                               style: TextStyle(
                                 fontSize: 18,
                                 fontWeight: FontWeight.bold,
-                                color: Colors.black87,
+                                color: Theme.of(context).colorScheme.onSurface,
                               ),
                             ),
                           ],
@@ -182,7 +180,7 @@ class DashboardScreen extends ConsumerWidget {
                               return ListTile(
                                 contentPadding: EdgeInsets.zero,
                                 leading: CircleAvatar(
-                                  backgroundColor: Colors.amber.shade100,
+                                  backgroundColor: Colors.amber.withOpacity(0.2),
                                   child: Icon(
                                     Icons.person,
                                     color: Colors.amber.shade800,

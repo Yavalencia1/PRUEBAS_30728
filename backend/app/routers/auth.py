@@ -19,7 +19,7 @@ from app.core.security import (
     verificar_contraseña,
 )
 from app.models.usuario import RolUsuario, Usuario
-from app.schemas.auth import AuthMeResponse, LoginRequest, RefreshTokenRequest, RegistroRequest, TokenResponse
+from app.schemas.auth import AuthMeResponse, CambiarPasswordRequest, LoginRequest, RefreshTokenRequest, RegistroRequest, TokenResponse
 
 router = APIRouter(tags=["Auth"])
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl=f"{settings.api_v1_prefix}/auth/login")
@@ -218,4 +218,39 @@ async def obtener_mi_perfil(usuario: Usuario = Depends(obtener_usuario_actual)) 
     return _respuesta_estandarizada(
         AuthMeResponse.model_validate(usuario).model_dump(),
         "Perfil obtenido correctamente",
+    )
+
+
+@router.patch("/cambiar-password", response_model=dict)
+async def cambiar_password(
+    datos: CambiarPasswordRequest,
+    usuario: Usuario = Depends(obtener_usuario_actual),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    """
+    Cambia la contraseña del usuario autenticado.
+    Si primer_ingreso=True, además lo marca como False.
+    La nueva contraseña no puede ser igual a la contraseña temporal.
+    """
+    if not verificar_contraseña(datos.password_actual, usuario.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La contraseña actual es incorrecta",
+        )
+
+    if verificar_contraseña(datos.nueva_password, usuario.password_hash):
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="La nueva contraseña no puede ser igual a la contraseña temporal",
+        )
+
+    usuario.password_hash = generar_hash_contraseña(datos.nueva_password)
+    usuario.primer_ingreso = False
+
+    await db.commit()
+    await db.refresh(usuario)
+
+    return _respuesta_estandarizada(
+        AuthMeResponse.model_validate(usuario).model_dump(),
+        "Contraseña cambiada correctamente",
     )

@@ -261,7 +261,6 @@ class AsistenciaScreen extends ConsumerWidget {
     });
 
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
         title: const Text(
           'Reporte de Asistencias',
@@ -269,7 +268,6 @@ class AsistenciaScreen extends ConsumerWidget {
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
-        foregroundColor: Colors.black87,
         actions: [
           IconButton(
             onPressed: controller.cargarSesiones,
@@ -608,12 +606,10 @@ class AsistenciaDetalleScreen extends StatelessWidget {
     final horaFin = _formatLocalNullable(sesion.horaFin, 'HH:mm');
 
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
         title: const Text('Detalle de Asistencia'),
         backgroundColor: Colors.transparent,
         elevation: 0,
-        foregroundColor: Colors.black87,
       ),
       body: ListView(
         padding: const EdgeInsets.all(16),
@@ -728,7 +724,7 @@ class AsistenciaDetalleScreen extends StatelessWidget {
                 margin: const EdgeInsets.only(bottom: 10),
                 shape: RoundedRectangleBorder(
                   borderRadius: BorderRadius.circular(16),
-                  side: BorderSide(color: color.shade200),
+                  side: BorderSide(color: color.withOpacity(0.3)),
                 ),
                 child: ListTile(
                   contentPadding: const EdgeInsets.symmetric(
@@ -736,7 +732,7 @@ class AsistenciaDetalleScreen extends StatelessWidget {
                     vertical: 8,
                   ),
                   leading: CircleAvatar(
-                    backgroundColor: color.shade100,
+                    backgroundColor: color.withOpacity(0.15),
                     child: Icon(
                       asistencia.presente ? Icons.check_circle : Icons.cancel,
                       color: color,
@@ -744,16 +740,13 @@ class AsistenciaDetalleScreen extends StatelessWidget {
                   ),
                   title: Text(
                     asistencia.alumnoNombre,
-                    style: TextStyle(
+                    style: const TextStyle(
                       fontWeight: FontWeight.bold,
-                      color: asistencia.presente
-                          ? Colors.black87
-                          : Colors.grey.shade700,
                     ),
                   ),
                   subtitle: Text(
                     'Subida: $horaSubida  |  Bajada: $horaBajada',
-                    style: TextStyle(color: Colors.grey.shade700),
+                    style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6)),
                   ),
                   trailing: _EstadoTag(estado: asistencia.estado),
                 ),

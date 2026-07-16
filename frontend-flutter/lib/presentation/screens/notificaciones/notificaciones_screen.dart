@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'package:frontend/controlador/notificaciones_service.dart';
+import 'package:frontend/core/utils/top_snackbar.dart';
 
 class NotificacionesScreen extends ConsumerStatefulWidget {
   final Map<String, dynamic> usuario;
@@ -176,14 +177,10 @@ class _NotificacionesScreenState extends ConsumerState<NotificacionesScreen> {
     if (ok) {
       await _refrescar();
       if (mounted) {
-        ScaffoldMessenger.of(
-          context,
-        ).showSnackBar(const SnackBar(content: Text('Notificación eliminada')));
+        TopSnackBar.showSuccess(context, 'Notificación eliminada');
       }
     } else if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('No se pudo eliminar la notificación')),
-      );
+      TopSnackBar.showError(context, 'No se pudo eliminar la notificación');
     }
   }
 
@@ -200,8 +197,7 @@ class _NotificacionesScreenState extends ConsumerState<NotificacionesScreen> {
       appBar: AppBar(
         title: const Text('Notificaciones'),
         elevation: 0,
-        backgroundColor: Colors.white,
-        foregroundColor: Colors.black,
+        backgroundColor: Colors.transparent,
       ),
       body: FutureBuilder<List<Map<String, dynamic>>>(
         future: _notificacionesFuture,
@@ -288,7 +284,9 @@ class _NotificacionesScreenState extends ConsumerState<NotificacionesScreen> {
                       vertical: 4,
                     ),
                     decoration: BoxDecoration(
-                      color: leida ? Colors.grey[50] : Colors.blue[50],
+                      color: leida
+                          ? Theme.of(context).cardColor
+                          : Theme.of(context).colorScheme.primary.withOpacity(0.1),
                       border: Border(
                         left: BorderSide(color: tipoColor, width: 4),
                       ),

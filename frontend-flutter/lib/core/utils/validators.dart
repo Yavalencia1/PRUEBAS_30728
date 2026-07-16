@@ -2,15 +2,19 @@ class Validators {
   static String? validarNombre(String? v) {
     if (v == null || v.trim().isEmpty) return 'Este campo es obligatorio';
     if (v.trim().length < 2) return 'Debe tener mínimo 2 letras';
-    final hasNumbers = RegExp(r'[0-9]').hasMatch(v);
-    if (hasNumbers) return 'No debe contener números';
+    final nameRegex = RegExp(r'^[a-zA-ZáéíóúÁÉÍÓÚñÑ\s]+$');
+    if (!nameRegex.hasMatch(v)) {
+      return 'Solo se permiten letras y espacios';
+    }
     return null;
   }
 
   static String? validarEmail(String? v) {
     if (v == null || v.trim().isEmpty) return 'El correo es obligatorio';
-    final emailRegex = RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$');
-    if (!emailRegex.hasMatch(v.trim())) return 'Formato de correo inválido';
+    final emailRegex = RegExp(r'^[\w.-]+@[\w.-]+\.(com|ec|edu\.ec|es|org|net)$');
+    if (!emailRegex.hasMatch(v.trim())) {
+      return 'Formato inválido. Use dominios permitidos (com, ec, edu.ec, etc.)';
+    }
     return null;
   }
 

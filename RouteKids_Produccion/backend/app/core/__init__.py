@@ -1,1 +1,0 @@
-# c:\Users\Anahi\PRUEBAS_30728\backend\app\core\__init__.py

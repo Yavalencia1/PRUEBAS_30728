@@ -307,7 +307,6 @@ class _RutasScreenState extends State<RutasScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
       body: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Column(
@@ -361,7 +360,7 @@ class _RutasScreenState extends State<RutasScreen> {
                               scrollDirection: Axis.horizontal,
                               child: DataTable(
                                 headingRowColor: WidgetStateProperty.resolveWith(
-                                    (states) => Colors.grey.shade200),
+                                    (states) => Theme.of(context).dividerColor.withOpacity(0.05)),
                                 columns: const [
                                   DataColumn(
                                       label: Text('ID',
@@ -396,7 +395,6 @@ class _RutasScreenState extends State<RutasScreen> {
                                           label: Text(_traducirTipo(ruta.tipo),
                                               style: const TextStyle(
                                                   fontSize: 12)),
-                                          backgroundColor: Colors.blue.shade50,
                                           padding: EdgeInsets.zero,
                                         ),
                                       ),

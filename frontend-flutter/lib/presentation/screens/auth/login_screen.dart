@@ -2,10 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'dart:convert';
 import 'package:frontend/main.dart'; // Para navegar a HomePage
-import 'package:frontend/presentation/screens/auth/register_screen.dart';
 import 'package:frontend/core/utils/validators.dart';
 import 'package:frontend/core/utils/error_messages.dart';
 import 'package:frontend/core/config/api_config.dart';
+import 'package:frontend/core/utils/top_snackbar.dart';
+import 'package:frontend/presentation/screens/auth/cambiar_password_primer_ingreso_screen.dart';
 
 class LoginPage extends StatefulWidget {
   const LoginPage({super.key});
@@ -61,20 +62,35 @@ class _LoginPageState extends State<LoginPage> {
           });
 
           if (mounted) {
-            ScaffoldMessenger.of(context).showSnackBar(
-              SnackBar(
-                content: Text('¡Bienvenido, ${usuario['nombre']}!'),
-                backgroundColor: Colors.green,
-              ),
-            );
-            Navigator.of(context).pushReplacement(
-              MaterialPageRoute(
-                builder: (context) => HomePage(
-                  accessToken: tokens['access_token'],
-                  usuario: usuario,
+            final bool primerIngreso = usuario['primer_ingreso'] == true;
+
+            if (primerIngreso) {
+              // Guardar la contraseña temporal para usarla como password_actual
+              final usuarioConTemp = Map<String, dynamic>.from(usuario);
+              usuarioConTemp['_password_temporal'] =
+                  _passwordController.text;
+
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(
+                  builder: (context) =>
+                      CambiarPasswordPrimerIngresoScreen(
+                    accessToken: tokens['access_token'],
+                    usuario: usuarioConTemp,
+                  ),
                 ),
-              ),
-            );
+              );
+            } else {
+              TopSnackBar.showSuccess(
+                  context, '¡Bienvenido, ${usuario['nombre']}!');
+              Navigator.of(context).pushReplacement(
+                MaterialPageRoute(
+                  builder: (context) => HomePage(
+                    accessToken: tokens['access_token'],
+                    usuario: usuario,
+                  ),
+                ),
+              );
+            }
           }
         }
       } else {
@@ -262,9 +278,7 @@ class _LoginPageState extends State<LoginPage> {
                     ),
                     TextButton(
                       onPressed: () {
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Funcionalidad en desarrollo')),
-                        );
+                        TopSnackBar.showInfo(context, 'Funcionalidad en desarrollo');
                       },
                       child: const Text('¿Olvidaste tu contraseña?'),
                     ),
@@ -293,24 +307,6 @@ class _LoginPageState extends State<LoginPage> {
                         ),
                 ),
                 
-                const SizedBox(height: 24),
-                
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.center,
-                  children: [
-                    const Text('¿No tienes cuenta?'),
-                    TextButton(
-                      onPressed: () {
-                        Navigator.of(context).push(
-                          MaterialPageRoute(
-                            builder: (context) => const RegisterPage(),
-                          ),
-                        );
-                      },
-                      child: const Text('Regístrate'),
-                    ),
-                  ],
-                ),
               ],
             ),
           ),

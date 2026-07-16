@@ -44,6 +44,12 @@ class _MainLayoutState extends State<MainLayout> {
           NavItem('Pagos', Icons.payment),
           NavItem('Perfil', Icons.person),
         ];
+      case 'admin':
+        return [
+          NavItem('Usuarios', Icons.people),
+          NavItem('Asistencia', Icons.checklist),
+          NavItem('Perfil', Icons.person),
+        ];
       case 'conductor':
         return [
           NavItem('Mi Ruta de Hoy', Icons.map),
@@ -108,7 +114,7 @@ class _MainLayoutState extends State<MainLayout> {
               onLogout: widget.onLogout,
               primaryColor: _primaryColor,
             ),
-          const VerticalDivider(width: 1, thickness: 1, color: Colors.black12),
+          const VerticalDivider(width: 1, thickness: 1),
           Expanded(child: widget.child),
         ],
       ),
@@ -139,7 +145,7 @@ class _Sidebar extends StatelessWidget {
   Widget build(BuildContext context) {
     return Container(
       width: 240,
-      color: Colors.white,
+      color: Theme.of(context).colorScheme.surface,
       child: Column(
         children: [
           UserAccountsDrawerHeader(
@@ -175,12 +181,12 @@ class _Sidebar extends StatelessWidget {
                 return ListTile(
                   leading: Icon(
                     item.icon,
-                    color: isSelected ? primaryColor : Colors.black54,
+                    color: isSelected ? primaryColor : Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
                   ),
                   title: Text(
                     item.label,
                     style: TextStyle(
-                      color: isSelected ? primaryColor : Colors.black87,
+                      color: isSelected ? primaryColor : Theme.of(context).colorScheme.onSurface,
                       fontWeight: isSelected
                           ? FontWeight.bold
                           : FontWeight.normal,
@@ -193,7 +199,7 @@ class _Sidebar extends StatelessWidget {
               },
             ),
           ),
-          const Divider(height: 1, color: Colors.black12),
+          const Divider(height: 1),
           ListTile(
             leading: const Icon(Icons.logout, color: Colors.redAccent),
             title: const Text(

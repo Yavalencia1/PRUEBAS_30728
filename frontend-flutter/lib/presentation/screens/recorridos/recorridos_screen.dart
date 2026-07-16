@@ -241,7 +241,6 @@ class _RecorridosScreenState extends State<RecorridosScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
       body: Padding(
         padding: const EdgeInsets.all(24.0),
         child: Column(
@@ -294,7 +293,7 @@ class _RecorridosScreenState extends State<RecorridosScreen> {
                             child: SingleChildScrollView(
                               scrollDirection: Axis.horizontal,
                               child: DataTable(
-                                headingRowColor: WidgetStateProperty.resolveWith((states) => Colors.grey.shade200),
+                                headingRowColor: WidgetStateProperty.resolveWith((states) => Theme.of(context).dividerColor.withOpacity(0.05)),
                                 columns: const [
                                   DataColumn(label: Text('ID', style: TextStyle(fontWeight: FontWeight.bold))),
                                   DataColumn(label: Text('Nombre', style: TextStyle(fontWeight: FontWeight.bold))),
@@ -312,7 +311,7 @@ class _RecorridosScreenState extends State<RecorridosScreen> {
                                       DataCell(
                                         Chip(
                                           label: Text(recorrido.activo ? 'Activo' : 'Inactivo', style: const TextStyle(fontSize: 12)),
-                                          backgroundColor: recorrido.activo ? Colors.green.shade50 : Colors.grey.shade200,
+                                          backgroundColor: recorrido.activo ? Colors.green.withOpacity(0.15) : Theme.of(context).colorScheme.onSurface.withOpacity(0.1),
                                           padding: EdgeInsets.zero,
                                         ),
                                       ),

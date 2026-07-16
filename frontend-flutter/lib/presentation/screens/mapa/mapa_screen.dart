@@ -337,7 +337,7 @@ class MapaScreen extends ConsumerWidget {
             top: 16,
             right: 16,
             child: FloatingActionButton(
-              backgroundColor: Colors.white,
+              backgroundColor: Theme.of(context).cardColor,
               onPressed: () => controller.centrarMapa(),
               child: const Icon(Icons.my_location, color: Color(0xFF534AB7)),
             ),
@@ -350,10 +350,10 @@ class MapaScreen extends ConsumerWidget {
             right: 0,
             child: Container(
               padding: const EdgeInsets.all(24.0),
-              decoration: const BoxDecoration(
-                color: Colors.white,
-                borderRadius: BorderRadius.vertical(top: Radius.circular(24)),
-                boxShadow: [
+              decoration: BoxDecoration(
+                color: Theme.of(context).cardColor,
+                borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
+                boxShadow: const [
                   BoxShadow(
                     color: Colors.black26,
                     blurRadius: 10,
@@ -403,7 +403,7 @@ class MapaScreen extends ConsumerWidget {
                   const SizedBox(height: 8),
                   Text(
                     'Última actualización: ${state.lastUpdate != null ? _formatTime(state.lastUpdate!) : "Esperando..."}',
-                    style: const TextStyle(color: Colors.black54),
+                    style: TextStyle(color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6)),
                   ),
                 ],
               ),

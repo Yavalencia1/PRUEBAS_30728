@@ -616,7 +616,6 @@ class MiRutaScreen extends ConsumerWidget {
     final controller = ref.read(miRutaProvider(accessToken).notifier);
 
     return Scaffold(
-      backgroundColor: Colors.grey.shade50,
       appBar: AppBar(
         title: const Text(
           'Mi Ruta de Hoy',
@@ -624,7 +623,6 @@ class MiRutaScreen extends ConsumerWidget {
         ),
         backgroundColor: Colors.transparent,
         elevation: 0,
-        foregroundColor: Colors.black87,
       ),
       body: Padding(
         padding: const EdgeInsets.all(16.0),
@@ -661,8 +659,8 @@ class MiRutaScreen extends ConsumerWidget {
                         Container(
                           padding: const EdgeInsets.all(12),
                           decoration: BoxDecoration(
-                            color: Colors.orange.shade50,
-                            border: Border.all(color: Colors.orange.shade200),
+                            color: Colors.orange.withOpacity(0.12),
+                            border: Border.all(color: Colors.orange.withOpacity(0.3)),
                             borderRadius: BorderRadius.circular(12),
                           ),
                           child: Row(
@@ -680,14 +678,14 @@ class MiRutaScreen extends ConsumerWidget {
                         ),
                         const SizedBox(height: 16),
                       ] else ...[
-                        const Align(
+                        Align(
                           alignment: Alignment.centerLeft,
                           child: Text(
                             'Selecciona tu Ruta:',
                             style: TextStyle(
                               fontSize: 14,
                               fontWeight: FontWeight.bold,
-                              color: Colors.black54,
+                              color: Theme.of(context).colorScheme.onSurface.withOpacity(0.6),
                             ),
                           ),
                         ),
@@ -703,7 +701,7 @@ class MiRutaScreen extends ConsumerWidget {
                               vertical: 12,
                             ),
                             filled: true,
-                            fillColor: Colors.white,
+                            fillColor: Theme.of(context).cardColor,
                           ),
                           items: state.rutas.map((ruta) {
                             return DropdownMenuItem<int>(
@@ -842,7 +840,7 @@ class MiRutaScreen extends ConsumerWidget {
                           elevation: 0,
                           shape: RoundedRectangleBorder(
                             borderRadius: BorderRadius.circular(12),
-                            side: BorderSide(color: Colors.grey.shade200),
+                            side: BorderSide(color: Theme.of(context).dividerColor.withOpacity(0.5)),
                           ),
                           child: ListTile(
                             contentPadding: const EdgeInsets.symmetric(
@@ -851,10 +849,10 @@ class MiRutaScreen extends ConsumerWidget {
                             ),
                             leading: CircleAvatar(
                               backgroundColor: alumno.finalizado
-                                  ? Colors.blue.shade100
+                                  ? Colors.blue.withOpacity(0.15)
                                   : alumno.enBus
-                                  ? Colors.green.shade100
-                                  : Colors.orange.shade100,
+                                  ? Colors.green.withOpacity(0.15)
+                                  : Colors.orange.withOpacity(0.15),
                               child: Icon(
                                 alumno.finalizado
                                     ? Icons.flag
@@ -877,7 +875,7 @@ class MiRutaScreen extends ConsumerWidget {
                                     : null,
                                 color: alumno.finalizado
                                     ? Colors.grey
-                                    : Colors.black87,
+                                    : Theme.of(context).colorScheme.onSurface,
                               ),
                             ),
                             subtitle: Column(

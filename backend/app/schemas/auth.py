@@ -70,6 +70,29 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
 
 
+class CambiarPasswordRequest(BaseModel):
+    password_actual: str
+    nueva_password: str = Field(min_length=8, max_length=128)
+    confirmar_nueva_password: str
+
+    @field_validator("nueva_password")
+    @classmethod
+    def validar_nueva_password(cls, v: str) -> str:
+        if not re.search(r"[A-Z]", v):
+            raise ValueError("Debe contener al menos una mayúscula")
+        if not re.search(r"\d", v):
+            raise ValueError("Debe contener al menos un número")
+        if not re.search(r'[!@#$%^&*(),.?":{}|<>]', v):
+            raise ValueError("Debe contener al menos un carácter especial")
+        return v
+
+    @model_validator(mode="after")
+    def validar_coincidencia(self) -> "CambiarPasswordRequest":
+        if self.nueva_password != self.confirmar_nueva_password:
+            raise ValueError("Las contraseñas no coinciden")
+        return self
+
+
 class AuthMeResponse(BaseModel):
     model_config = ConfigDict(from_attributes=True)
 
@@ -83,3 +106,4 @@ class AuthMeResponse(BaseModel):
     numero_ruta: str | None = None
     nombre_ruta: str | None = None
     fotografia: str | None = None
+    primer_ingreso: bool = True
