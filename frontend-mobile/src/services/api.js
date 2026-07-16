@@ -188,7 +188,14 @@ export const api = {
   usuarios: {
     listByRol: async (rol) => {
       try {
-        return extractPayload(await client.get(`/usuarios?rol=${rol}`));
+        return extractPayload(await client.get(`/usuarios/?rol=${rol}`));
+      } catch (error) {
+        return { ok: false, mensaje: error.message };
+      }
+    },
+    delete: async (usuarioId) => {
+      try {
+        return extractPayload(await client.delete(`/usuarios/${usuarioId}`));
       } catch (error) {
         return { ok: false, mensaje: error.message };
       }
@@ -201,7 +208,7 @@ export const api = {
       try {
         const { padreId = null } = params;
         const query = padreId ? `?padre_id=${padreId}` : '';
-        return extractPayload(await client.get(`/recorridos${query}`));
+        return extractPayload(await client.get(`/recorridos/${query}`));
       } catch (error) {
         return { ok: false, mensaje: error.message };
       }
@@ -243,7 +250,7 @@ export const api = {
     list: async (recorridoId = null) => {
       try {
         const query = recorridoId ? `?recorrido_id=${recorridoId}` : '';
-        return extractPayload(await client.get(`/rutas${query}`));
+        return extractPayload(await client.get(`/rutas/${query}`));
       } catch (error) {
         return { ok: false, mensaje: error.message };
       }
@@ -292,7 +299,7 @@ export const api = {
         if (recorridoId) params.push(`recorrido_id=${recorridoId}`);
         if (rutaId) params.push(`ruta_id=${rutaId}`);
         const query = params.length ? `?${params.join('&')}` : '';
-        return extractPayload(await client.get(`/paradas${query}`));
+        return extractPayload(await client.get(`/paradas/${query}`));
       } catch (error) {
         return { ok: false, mensaje: error.message };
       }
@@ -346,7 +353,7 @@ export const api = {
   alumnos: {
     list: async () => {
       try {
-        return extractPayload(await client.get('/alumnos'));
+        return extractPayload(await client.get('/alumnos/'));
       } catch (error) {
         return { ok: false, mensaje: error.message };
       }
@@ -501,7 +508,7 @@ export const api = {
   notificaciones: {
     list: async () => {
       try {
-        return extractPayload(await client.get('/notificaciones'));
+        return extractPayload(await client.get('/notificaciones/'));
       } catch (error) {
         return { ok: false, mensaje: error.message };
       }

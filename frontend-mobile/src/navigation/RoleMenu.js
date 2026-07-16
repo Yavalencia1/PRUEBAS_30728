@@ -37,6 +37,7 @@ export const getRoleMenu = (rol) => {
       { name: 'Asistencia', label: 'Asistencia', icon: 'checkmark-circle-outline', primary: true },
       { name: 'GestionRutas', label: 'Gestión de Rutas', icon: 'trail-sign-outline', tabContainer: true },
       { name: 'Alumnos', label: 'Alumnos', icon: 'people-outline' },
+      { name: 'Conductores', label: 'Conductores', icon: 'bus-outline' },
       { name: 'Pagos', label: 'Pagos', icon: 'card-outline' },
     ]),
   };

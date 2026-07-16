@@ -7,6 +7,8 @@
 -- paso 1b con las credenciales documentadas en credenciales_prueba.md.
 -- Las contraseñas se precalculan con bcrypt (mismo esquema que el backend).
 
+SET client_encoding = 'UTF8';
+
 BEGIN;
 
 -- 1) Limpieza (orden FK-seguro), preservando usuarios

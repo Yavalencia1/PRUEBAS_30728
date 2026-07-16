@@ -10,186 +10,10 @@ import {
   Alert,
   KeyboardAvoidingView,
   Platform,
+  SafeAreaView,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
-
-const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    backgroundColor: '#f8f9fa',
-  },
-  scrollContent: {
-    flexGrow: 1,
-    justifyContent: 'center',
-    paddingHorizontal: 20,
-    paddingVertical: 40,
-  },
-  logoContainer: {
-    alignItems: 'center',
-    marginBottom: 40,
-  },
-  logoText: {
-    fontSize: 48,
-    marginBottom: 8,
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: 'bold',
-    color: '#1a202c',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  subtitle: {
-    fontSize: 16,
-    color: '#718096',
-    marginBottom: 24,
-    textAlign: 'center',
-  },
-  formContainer: {
-    backgroundColor: '#ffffff',
-    borderRadius: 12,
-    padding: 24,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
-    marginBottom: 20,
-  },
-  formGroup: {
-    marginBottom: 20,
-  },
-  label: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#2d3748',
-    marginBottom: 8,
-  },
-  inputContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#cbd5e0',
-    borderRadius: 8,
-    backgroundColor: '#f7fafc',
-    paddingHorizontal: 12,
-  },
-  input: {
-    flex: 1,
-    paddingVertical: 12,
-    paddingHorizontal: 8,
-    fontSize: 16,
-    color: '#2d3748',
-  },
-  iconButton: {
-    padding: 8,
-  },
-  iconText: {
-    fontSize: 18,
-  },
-  alertContainer: {
-    backgroundColor: '#fed7d7',
-    borderLeftWidth: 4,
-    borderLeftColor: '#f56565',
-    borderRadius: 4,
-    padding: 12,
-    marginBottom: 16,
-    flexDirection: 'row',
-  },
-  alertIcon: {
-    fontSize: 18,
-    marginRight: 12,
-    marginTop: 2,
-  },
-  alertText: {
-    flex: 1,
-    fontSize: 14,
-    color: '#742a2a',
-  },
-  loginButton: {
-    backgroundColor: '#6366f1',
-    paddingVertical: 14,
-    borderRadius: 8,
-    alignItems: 'center',
-    marginBottom: 16,
-  },
-  loginButtonPressed: {
-    backgroundColor: '#4f46e5',
-  },
-  loginButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#ffffff',
-  },
-  loginButtonDisabled: {
-    backgroundColor: '#cbd5e0',
-  },
-  registerButton: {
-    backgroundColor: '#ffffff',
-    borderWidth: 1,
-    borderColor: '#cbd5e0',
-    paddingVertical: 12,
-    borderRadius: 8,
-    alignItems: 'center',
-  },
-  registerButtonPressed: {
-    backgroundColor: '#f7fafc',
-  },
-  registerButtonText: {
-    fontSize: 16,
-    fontWeight: '600',
-    color: '#6366f1',
-  },
-  buttonsContainer: {
-    marginTop: 24,
-  },
-  dividerContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginVertical: 20,
-  },
-  divider: {
-    flex: 1,
-    height: 1,
-    backgroundColor: '#cbd5e0',
-  },
-  dividerText: {
-    paddingHorizontal: 12,
-    color: '#718096',
-    fontSize: 14,
-  },
-  checkboxContainer: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginTop: 4,
-  },
-  checkbox: {
-    width: 20,
-    height: 20,
-    borderWidth: 2,
-    borderColor: '#cbd5e0',
-    borderRadius: 4,
-    marginRight: 8,
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  checkboxChecked: {
-    backgroundColor: '#6366f1',
-    borderColor: '#6366f1',
-  },
-  checkboxLabel: {
-    fontSize: 14,
-    color: '#2d3748',
-    flex: 1,
-  },
-  alertWarningContainer: {
-    backgroundColor: '#feebc8',
-    borderLeftColor: '#ed8936',
-  },
-  alertWarningText: {
-    color: '#7c2d12',
-  },
-});
 
 export default function LoginScreen({ navigation }) {
   const [email, setEmail] = useState('');
@@ -217,7 +41,6 @@ export default function LoginScreen({ navigation }) {
       setPassword('');
     } else {
       setFailedAttempts(0);
-      // La navegación se maneja automáticamente en AppNavigator según isLoggedIn
     }
   }, [email, password, login]);
 
@@ -226,14 +49,17 @@ export default function LoginScreen({ navigation }) {
   }, [navigation]);
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-    >
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+    <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
+      >
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Logo y título */}
         <View style={styles.logoContainer}>
-          <Text style={styles.logoText}>🚌</Text>
+          <View style={styles.logoBackground}>
+            <Ionicons name="bus" size={32} color="#185FA5" />
+          </View>
           <Text style={styles.title}>RouteKids</Text>
           <Text style={styles.subtitle}>Lleva a tus niños seguros, siempre</Text>
         </View>
@@ -243,7 +69,7 @@ export default function LoginScreen({ navigation }) {
           {/* Alerta de múltiples intentos fallidos */}
           {failedAttempts >= 3 && (
             <View style={[styles.alertContainer, styles.alertWarningContainer]}>
-              <Text style={styles.alertIcon}>⚠️</Text>
+              <Ionicons name="warning-outline" size={18} color="#7c2d12" style={styles.alertIcon} />
               <View style={{ flex: 1 }}>
                 <Text style={[styles.alertText, styles.alertWarningText, { fontWeight: '600' }]}>
                   Varios intentos fallidos.
@@ -258,7 +84,7 @@ export default function LoginScreen({ navigation }) {
           {/* Alerta de error */}
           {errorMsg && (
             <View style={styles.alertContainer}>
-              <Text style={styles.alertIcon}>❌</Text>
+              <Ionicons name="alert-circle-outline" size={18} color="#A32D2D" style={styles.alertIcon} />
               <Text style={styles.alertText}>{errorMsg}</Text>
             </View>
           )}
@@ -267,7 +93,7 @@ export default function LoginScreen({ navigation }) {
           <View style={styles.formGroup}>
             <Text style={styles.label}>Correo Electrónico</Text>
             <View style={styles.inputContainer}>
-              <Text style={styles.iconText}>✉️</Text>
+              <Ionicons name="mail-outline" size={18} color="#185FA5" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
                 placeholder="nombre@ejemplo.com"
@@ -286,7 +112,7 @@ export default function LoginScreen({ navigation }) {
           <View style={styles.formGroup}>
             <Text style={styles.label}>Contraseña</Text>
             <View style={styles.inputContainer}>
-              <Text style={styles.iconText}>🔒</Text>
+              <Ionicons name="lock-closed-outline" size={18} color="#185FA5" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
                 placeholder="••••••••"
@@ -301,7 +127,11 @@ export default function LoginScreen({ navigation }) {
                 onPress={() => setShowPassword(!showPassword)}
                 disabled={isLoading}
               >
-                <Text style={styles.iconText}>{showPassword ? '👁️' : '👁️‍🗨️'}</Text>
+                <Ionicons
+                  name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                  size={18}
+                  color="#888780"
+                />
               </Pressable>
             </View>
           </View>
@@ -314,7 +144,7 @@ export default function LoginScreen({ navigation }) {
               disabled={isLoading}
             >
               {rememberMe && (
-                <Text style={{ color: '#ffffff', fontSize: 12, fontWeight: 'bold' }}>✓</Text>
+                <Ionicons name="checkmark" size={12} color="#ffffff" />
               )}
             </Pressable>
             <Text style={styles.checkboxLabel}>Recordarme</Text>
@@ -356,7 +186,190 @@ export default function LoginScreen({ navigation }) {
             </Pressable>
           </View>
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+  },
+  scrollContent: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    paddingHorizontal: 20,
+    paddingVertical: 40,
+  },
+  logoContainer: {
+    alignItems: 'center',
+    marginBottom: 32,
+  },
+  logoBackground: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#E6F1FB',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  title: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#2C2C2A',
+    marginBottom: 6,
+    textAlign: 'center',
+  },
+  subtitle: {
+    fontSize: 12,
+    color: '#888780',
+    marginBottom: 20,
+    textAlign: 'center',
+  },
+  formContainer: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    padding: 20,
+    borderWidth: 0.5,
+    borderColor: '#E6F1FB',
+    marginBottom: 20,
+  },
+  formGroup: {
+    marginBottom: 16,
+  },
+  label: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#2C2C2A',
+    marginBottom: 6,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  inputContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E6F1FB',
+    borderRadius: 12,
+    backgroundColor: '#F4F8FD',
+    paddingHorizontal: 12,
+  },
+  input: {
+    flex: 1,
+    paddingVertical: 10,
+    paddingHorizontal: 8,
+    fontSize: 13,
+    color: '#2C2C2A',
+  },
+  inputIcon: {
+    marginRight: 4,
+  },
+  iconButton: {
+    padding: 8,
+  },
+  alertContainer: {
+    backgroundColor: '#FCEBEB',
+    borderWidth: 0.5,
+    borderColor: '#e24b4a',
+    borderRadius: 12,
+    padding: 12,
+    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  alertIcon: {
+    marginRight: 10,
+  },
+  alertText: {
+    flex: 1,
+    fontSize: 12,
+    color: '#A32D2D',
+  },
+  loginButton: {
+    backgroundColor: '#185FA5',
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  loginButtonPressed: {
+    opacity: 0.85,
+  },
+  loginButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  loginButtonDisabled: {
+    backgroundColor: '#cbd5e0',
+  },
+  registerButton: {
+    backgroundColor: '#ffffff',
+    borderWidth: 1,
+    borderColor: '#B5D4F4',
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+  },
+  registerButtonPressed: {
+    backgroundColor: '#F4F8FD',
+  },
+  registerButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#185FA5',
+  },
+  buttonsContainer: {
+    marginTop: 16,
+  },
+  dividerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 16,
+  },
+  divider: {
+    flex: 1,
+    height: 0.5,
+    backgroundColor: '#E6F1FB',
+  },
+  dividerText: {
+    paddingHorizontal: 12,
+    color: '#888780',
+    fontSize: 11,
+  },
+  checkboxContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 4,
+  },
+  checkbox: {
+    width: 18,
+    height: 18,
+    borderWidth: 1,
+    borderColor: '#E6F1FB',
+    borderRadius: 4,
+    marginRight: 8,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#F4F8FD',
+  },
+  checkboxChecked: {
+    backgroundColor: '#185FA5',
+    borderColor: '#185FA5',
+  },
+  checkboxLabel: {
+    fontSize: 12,
+    color: '#888780',
+    flex: 1,
+  },
+  alertWarningContainer: {
+    backgroundColor: '#FAEEDA',
+    borderColor: '#EF9F27',
+  },
+  alertWarningText: {
+    color: '#854F0B',
+  },
+});

@@ -32,6 +32,10 @@ class Usuario(Base):
         default=RolUsuario.padre,
     )
     creado_en: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, server_default=func.now())
+    placa: Mapped[str | None] = mapped_column(String(20), nullable=True)
+    numero_ruta: Mapped[str | None] = mapped_column(String(50), nullable=True)
+    nombre_ruta: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    fotografia: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
     recorridos_dueno = relationship("Recorrido", back_populates="dueno", cascade="all, delete-orphan")
     alumnos_padre = relationship("Alumno", back_populates="padre", foreign_keys="Alumno.padre_id")

@@ -19,6 +19,8 @@ class Alumno(Base):
     recorrido_id: Mapped[int] = mapped_column(ForeignKey("recorridos.id", ondelete="CASCADE"), nullable=False, index=True)
     parada_id: Mapped[int | None] = mapped_column(ForeignKey("paradas.id", ondelete="SET NULL"), nullable=True, index=True)
     fecha_nacimiento: Mapped[date] = mapped_column(Date, nullable=False)
+    curso: Mapped[str | None] = mapped_column(String(100), nullable=True)
+    fotografia: Mapped[str | None] = mapped_column(String(500), nullable=True)
 
     padre = relationship("Usuario", back_populates="alumnos_padre", foreign_keys=[padre_id])
     recorrido = relationship("Recorrido", back_populates="alumnos")

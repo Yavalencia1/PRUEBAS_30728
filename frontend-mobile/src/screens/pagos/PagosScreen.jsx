@@ -9,51 +9,11 @@ import {
   ActivityIndicator,
   Alert,
   RefreshControl,
-  Modal,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { api } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
-
-// ─── Selector nativo (sin @react-native-picker/picker) ───────────────────────
-
-function SimpleSelector({ label, options, selectedValue, onValueChange, disabled }) {
-  const [open, setOpen] = useState(false);
-  const selected = options.find(o => o.value === selectedValue);
-  return (
-    <View style={selStyles.container}>
-      {label ? <Text style={selStyles.label}>{label}</Text> : null}
-      <TouchableOpacity
-        style={[selStyles.trigger, disabled && selStyles.disabled]}
-        onPress={() => !disabled && setOpen(true)}
-      >
-        <Text style={selStyles.triggerText} numberOfLines={1}>
-          {selected ? selected.label : 'Seleccionar…'}
-        </Text>
-        <Text style={selStyles.arrow}>▾</Text>
-      </TouchableOpacity>
-      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
-        <TouchableOpacity style={selStyles.overlay} onPress={() => setOpen(false)} activeOpacity={1}>
-          <View style={selStyles.sheet}>
-            {label ? <Text style={selStyles.sheetTitle}>{label}</Text> : null}
-            <ScrollView>
-              {options.map(opt => (
-                <TouchableOpacity
-                  key={opt.value}
-                  style={[selStyles.option, opt.value === selectedValue && selStyles.optionSelected]}
-                  onPress={() => { onValueChange(opt.value); setOpen(false); }}
-                >
-                  <Text style={[selStyles.optionText, opt.value === selectedValue && selStyles.optionTextSelected]}>
-                    {opt.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
-            </ScrollView>
-          </View>
-        </TouchableOpacity>
-      </Modal>
-    </View>
-  );
-}
+import { StatusBadge } from '../../components/StatusBadge';
 
 export default function PagosScreen() {
   const { usuario } = useAuth();
@@ -82,7 +42,6 @@ export default function PagosScreen() {
       // El backend filtra según el rol/ID, pero enviamos el padre_id si es padre
       let data;
       if (rol === 'padre') {
-        // En api.js el método es list(estado, padreId)
         data = await api.pagos.list(filtro, usuario.id);
       } else {
         data = await api.pagos.list(filtro);
@@ -91,7 +50,7 @@ export default function PagosScreen() {
       const payload = data?.ok !== false ? (data?.data || data || []) : [];
       setPagos(Array.isArray(payload) ? payload : []);
 
-      // Cargar resumen (opcional, si el backend lo soporta para padres/dueños)
+      // Cargar resumen
       if (filtro === 'pendiente') {
         const summary = await api.pagos.resumen();
         if (summary && summary.ok !== false) {
@@ -168,8 +127,8 @@ export default function PagosScreen() {
 
   if (loading && !pagos.length) {
     return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" color="#6366f1" />
+      <View style={styles.centerContainer}>
+        <ActivityIndicator size="large" color="#185FA5" />
       </View>
     );
   }
@@ -185,53 +144,60 @@ export default function PagosScreen() {
     <View style={styles.container}>
       {error && (
         <View style={styles.errorContainer}>
+          <Ionicons name="alert-circle-outline" size={16} color="#A32D2D" style={{ marginRight: 6 }} />
           <Text style={styles.errorText}>{error}</Text>
         </View>
       )}
 
-      {/* Resumen */}
-      {resumen && (
-        <ScrollView
-          horizontal
-          showsHorizontalScrollIndicator={false}
-          contentContainerStyle={styles.resumenContainer}
-        >
-          <ResumenCard
-            label="Pendientes"
-            value={resumen.pendiente_count || 0}
-            total={resumen.pendiente_total || 0}
-            color="#f59e0b"
-            icon="⏰"
-          />
-          <ResumenCard
-            label="Pagados"
-            value={resumen.pagado_count || 0}
-            total={resumen.pagado_total || 0}
-            color="#10b981"
-            icon="✅"
-          />
+      {/* Resumen en cards compactas */}
+      {resumen && filtro === 'pendiente' && (
+        <View style={styles.resumenSection}>
+          <View style={styles.resumenGrid}>
+            <ResumenCard
+              label="Pendientes"
+              value={resumen.pendiente_count || 0}
+              total={resumen.pendiente_total || 0}
+              type="pendiente"
+            />
+            <ResumenCard
+              label="Pagados"
+              value={resumen.pagado_count || 0}
+              total={resumen.pagado_total || 0}
+              type="pagado"
+            />
+          </View>
           <ResumenCard
             label="Vencidos"
             value={resumen.vencido_count || 0}
             total={resumen.vencido_total || 0}
-            color="#ef4444"
-            icon="⚠️"
+            type="vencido"
           />
-        </ScrollView>
+        </View>
       )}
 
-      {/* Filtro */}
+      {/* Filtros */}
       <View style={styles.filterContainer}>
-        <SimpleSelector
-          options={filterOptions}
-          selectedValue={filtro}
-          onValueChange={setFiltro}
-        />
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chipsScroll}>
+          {filterOptions.map((opt) => {
+            const active = filtro === opt.value;
+            return (
+              <TouchableOpacity
+                key={opt.value}
+                style={[styles.chip, active ? styles.chipActive : styles.chipInactive]}
+                onPress={() => setFiltro(opt.value)}
+              >
+                <Text style={[styles.chipText, active ? styles.chipTextActive : styles.chipTextInactive]}>
+                  {opt.label}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+        </ScrollView>
       </View>
 
       {pagos.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyIcon}>💳</Text>
+          <Ionicons name="card-outline" size={28} color="#B4B2A9" style={{ marginBottom: 6 }} />
           <Text style={styles.emptyText}>No hay pagos en este filtro</Text>
         </View>
       ) : (
@@ -256,139 +222,225 @@ export default function PagosScreen() {
   );
 }
 
-function ResumenCard({ label, value, total, color, icon }) {
+function ResumenCard({ label, value, total, type }) {
+  const getTheme = () => {
+    switch (type) {
+      case 'pendiente':
+        return { bg: '#FAEEDA', border: '#EF9F27', numColor: '#EF9F27', icon: 'time-outline', textDark: '#854F0B' };
+      case 'pagado':
+        return { bg: '#E1F5EE', border: '#1D9E75', numColor: '#1D9E75', icon: 'checkmark-circle-outline', textDark: '#0F6E56' };
+      case 'vencido':
+        return { bg: '#FCEBEB', border: '#E24B4A', numColor: '#E24B4A', icon: 'alert-circle-outline', textDark: '#A32D2D' };
+      default:
+        return { bg: '#E6F1FB', border: '#0C447C', numColor: '#0C447C', icon: 'card-outline', textDark: '#0C447C' };
+    }
+  };
+  const theme = getTheme();
+
+  if (type === 'vencido') {
+    return (
+      <View style={[styles.resumenCardFull, { backgroundColor: theme.bg, borderLeftColor: theme.border, borderLeftWidth: 3 }]}>
+        <View style={styles.resumenHorizontal}>
+          <View style={[styles.statIconContainerSquare, { backgroundColor: '#ffffff' }]}>
+            <Ionicons name={theme.icon} size={14} color={theme.numColor} />
+          </View>
+          <View style={styles.resumenInfoCol}>
+            <Text style={styles.resumenLabelSmall}>{label}</Text>
+            <Text style={[styles.resumenNum, { color: theme.numColor }]}>{value} cuotas</Text>
+          </View>
+          <Text style={[styles.resumenMontoSmall, { color: theme.textDark }]}>${total.toFixed(2)}</Text>
+        </View>
+      </View>
+    );
+  }
+
   return (
-    <View style={[styles.resumenCard, { borderLeftColor: color }]}>
-      <Text style={styles.resumenIcon}>{icon}</Text>
-      <Text style={styles.resumenLabel}>{label}</Text>
-      <Text style={[styles.resumenValue, { color }]}>{value}</Text>
-      <Text style={styles.resumenTotal}>${total.toFixed(2)}</Text>
+    <View style={[styles.resumenCardHalf, { backgroundColor: theme.bg, borderLeftColor: theme.border, borderLeftWidth: 3 }]}>
+      <View style={styles.resumenCardHeader}>
+        <View style={[styles.statIconContainerSquare, { backgroundColor: '#ffffff' }]}>
+          <Ionicons name={theme.icon} size={14} color={theme.numColor} />
+        </View>
+        <Text style={[styles.resumenNum, { color: theme.numColor }]}>{value}</Text>
+      </View>
+      <Text style={styles.resumenLabelSmall}>{label}</Text>
+      <Text style={[styles.resumenMontoSmall, { color: theme.textDark }]}>${total.toFixed(2)}</Text>
     </View>
   );
 }
 
 function PagoCard({ pago, canUpdate, canDelete, onMarcarPagado, onMarcarNoPagado, onDelete }) {
-  const getFechaVencimiento = () => {
-    if (!pago.fecha_vencimiento) return 'Sin fecha';
-    const date = new Date(pago.fecha_vencimiento);
-    return date.toLocaleDateString('es-ES', {
-      month: 'short',
-      day: 'numeric',
-      year: '2-digit',
-    });
+  const getInitials = (name) => {
+    if (!name) return 'A';
+    return name.split(' ').filter(Boolean).map((n) => n[0]).slice(0, 2).join('').toUpperCase();
   };
 
-  const getEstadoColor = (estado) => {
+  const getMontoColor = (estado) => {
     const colors = {
-      pendiente: '#f59e0b',
-      pagado: '#10b981',
-      vencido: '#ef4444',
+      pendiente: '#854F0B',
+      pagado: '#0F6E56',
+      vencido: '#A32D2D',
     };
-    return colors[estado] || '#6366f1';
+    return colors[estado] || '#2C2C2A';
   };
 
   return (
     <View style={styles.pagoCard}>
-      <View
-        style={[
-          styles.pagoEstadoBorder,
-          { borderLeftColor: getEstadoColor(pago.estado) },
-        ]}
-      >
-        <View style={styles.pagoContent}>
-          <View style={styles.pagoHeader}>
-            <Text style={styles.pagoConcepto}>{pago.concepto || 'Pago'}</Text>
-            <Text style={styles.pagoMonto}>${pago.monto?.toFixed(2)}</Text>
-          </View>
-
-          {pago.alumno?.nombre && (
-            <Text style={styles.pagoAlumno}>👨‍👧 {pago.alumno.nombre}</Text>
-          )}
-
-          <View style={styles.pagoDetails}>
-            <Text style={styles.pagoDetalle}>
-              📅 Vencimiento: {getFechaVencimiento()}
-            </Text>
-            <Text style={[styles.pagoEstado, { color: getEstadoColor(pago.estado) }]}>
-              {pago.estado.toUpperCase()}
-            </Text>
-          </View>
+      <View style={styles.pagoLeft}>
+        <View style={styles.avatar}>
+          <Text style={styles.avatarText}>{getInitials(pago.alumno?.nombre)}</Text>
         </View>
-
-        {canUpdate && pago.estado === 'pendiente' && (
-          <TouchableOpacity
-            style={styles.pagoActionButton}
-            onPress={() => onMarcarPagado(pago)}
-          >
-            <Text style={styles.pagoActionIcon}>✓</Text>
-          </TouchableOpacity>
-        )}
-
-        {canUpdate && pago.estado === 'pagado' && (
-          <TouchableOpacity
-            style={[styles.pagoActionButton, { backgroundColor: '#fef3c7' }]}
-            onPress={() => onMarcarNoPagado(pago)}
-          >
-            <Text style={styles.pagoActionIcon}>↶</Text>
-          </TouchableOpacity>
-        )}
+        <View style={styles.pagoInfoCol}>
+          <Text style={styles.alumnoNombre} numberOfLines={1} ellipsizeMode="tail">
+            {pago.alumno?.nombre || 'Alumno'} {pago.alumno?.apellido || ''}
+          </Text>
+          <Text style={styles.pagoMes} numberOfLines={1} ellipsizeMode="tail">
+            {pago.concepto || 'Mensualidad Ruta'}
+          </Text>
+        </View>
       </View>
 
-      {canDelete && (
-        <TouchableOpacity
-          style={styles.deleteButton}
-          onPress={() => onDelete(pago)}
-        >
-          <Text style={styles.deleteIcon}>🗑️</Text>
-        </TouchableOpacity>
-      )}
+      <View style={styles.pagoRight}>
+        <View style={styles.pagoMontoCol}>
+          <Text style={[styles.pagoMonto, { color: getMontoColor(pago.estado) }]}>
+            ${pago.monto?.toFixed(2)}
+          </Text>
+          <StatusBadge estado={pago.estado} />
+        </View>
+
+        {/* Botones de acción si es admin/dueño */}
+        {(canUpdate || canDelete) && (
+          <View style={styles.actionsRow}>
+            {canUpdate && pago.estado === 'pendiente' && (
+              <TouchableOpacity
+                style={styles.actionButton}
+                onPress={() => onMarcarPagado(pago)}
+              >
+                <Ionicons name="checkmark" size={14} color="#0F6E56" />
+              </TouchableOpacity>
+            )}
+            {canUpdate && pago.estado === 'pagado' && (
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: '#fef3c7', borderColor: '#fcd34d' }]}
+                onPress={() => onMarcarNoPagado(pago)}
+              >
+                <Ionicons name="arrow-undo-outline" size={14} color="#b45309" />
+              </TouchableOpacity>
+            )}
+            {canDelete && (
+              <TouchableOpacity
+                style={[styles.actionButton, { backgroundColor: '#FCEBEB', borderColor: '#fca5a5' }]}
+                onPress={() => onDelete(pago)}
+              >
+                <Ionicons name="trash-outline" size={14} color="#A32D2D" />
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+      </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8f9fa' },
-  errorContainer: { marginHorizontal: 16, marginTop: 16, backgroundColor: '#fee2e2', borderRadius: 8, padding: 12, borderLeftWidth: 4, borderLeftColor: '#dc2626' },
-  errorText: { color: '#991b1b', fontSize: 14 },
-  resumenContainer: { paddingHorizontal: 16, paddingVertical: 12, gap: 12, maxHeight: 120 },
-  resumenCard: { backgroundColor: '#ffffff', borderRadius: 8, padding: 12, borderLeftWidth: 4, minWidth: 140, alignItems: 'center' },
-  resumenIcon: { fontSize: 24, marginBottom: 4 },
-  resumenLabel: { fontSize: 12, color: '#718096', marginBottom: 4 },
-  resumenValue: { fontSize: 18, fontWeight: 'bold', marginBottom: 2 },
-  resumenTotal: { fontSize: 11, color: '#a0aec0' },
-  filterContainer: { marginHorizontal: 16, marginVertical: 4 },
-  listContent: { paddingHorizontal: 16, paddingVertical: 12 },
-  emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  emptyIcon: { fontSize: 48, marginBottom: 16 },
-  emptyText: { fontSize: 18, fontWeight: '600', color: '#1a202c' },
-  pagoCard: { backgroundColor: '#ffffff', borderRadius: 8, marginBottom: 12, overflow: 'hidden', flexDirection: 'row' },
-  pagoEstadoBorder: { flex: 1, borderLeftWidth: 4, padding: 12, flexDirection: 'row', alignItems: 'center' },
-  pagoContent: { flex: 1 },
-  pagoHeader: { flexDirection: 'row', justifyContent: 'space-between', marginBottom: 8 },
-  pagoConcepto: { fontSize: 14, fontWeight: '600', color: '#1a202c' },
-  pagoMonto: { fontSize: 14, fontWeight: 'bold', color: '#1a202c' },
-  pagoAlumno: { fontSize: 12, color: '#718096', marginBottom: 6 },
-  pagoDetails: { flexDirection: 'row', justifyContent: 'space-between' },
-  pagoDetalle: { fontSize: 11, color: '#a0aec0' },
-  pagoEstado: { fontSize: 11, fontWeight: '600' },
-  pagoActionButton: { width: 32, height: 32, borderRadius: 6, backgroundColor: '#dcfce7', justifyContent: 'center', alignItems: 'center', marginLeft: 8 },
-  pagoActionIcon: { fontSize: 16, color: '#10b981', fontWeight: 'bold' },
-  deleteButton: { width: 36, height: 36, borderRadius: 6, backgroundColor: '#fee2e2', justifyContent: 'center', alignItems: 'center', marginRight: 8, alignSelf: 'center' },
-  deleteIcon: { fontSize: 18 },
-});
+  container: { flex: 1, backgroundColor: '#ffffff' },
+  centerContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#ffffff' },
+  errorContainer: { marginHorizontal: 12, marginTop: 12, backgroundColor: '#FCEBEB', borderRadius: 10, padding: 10, borderWidth: 0.5, borderColor: '#E6F1FB', flexDirection: 'row', alignItems: 'center' },
+  errorText: { color: '#A32D2D', fontSize: 11, fontWeight: '500' },
 
-const selStyles = StyleSheet.create({
-  container:          { marginBottom: 8 },
-  label:              { fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: 8 },
-  trigger:            { borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 12, backgroundColor: '#ffffff', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  disabled:           { opacity: 0.5 },
-  triggerText:        { fontSize: 14, color: '#1f2937', flex: 1 },
-  arrow:              { fontSize: 12, color: '#9ca3af' },
-  overlay:            { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  sheet:              { backgroundColor: '#fff', borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20, paddingBottom: 40, maxHeight: '60%' },
-  sheetTitle:         { fontSize: 16, fontWeight: '700', color: '#1a202c', marginBottom: 12 },
-  option:             { paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
-  optionSelected:     { backgroundColor: '#eef2ff', borderRadius: 8, paddingHorizontal: 8 },
-  optionText:         { fontSize: 15, color: '#1a202c' },
-  optionTextSelected: { color: '#6366f1', fontWeight: '600' },
+  resumenSection: { paddingHorizontal: 12, paddingTop: 12, gap: 7 },
+  resumenGrid: { flexDirection: 'row', gap: 7 },
+  resumenCardHalf: { flex: 1, borderRadius: 12, padding: 12, borderWidth: 0.5, borderColor: '#E6F1FB' },
+  resumenCardFull: { width: '100%', borderRadius: 12, padding: 12, borderWidth: 0.5, borderColor: '#E6F1FB' },
+  resumenHorizontal: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
+  resumenInfoCol: { flex: 1, marginLeft: 10 },
+  statIconContainerSquare: { width: 26, height: 26, borderRadius: 6, justifyContent: 'center', alignItems: 'center' },
+  resumenNum: { fontSize: 16, fontWeight: '700' },
+  resumenLabelSmall: { fontSize: 9, color: '#888780', marginTop: 2 },
+  resumenMontoSmall: { fontSize: 10, fontWeight: '500' },
+
+  filterContainer: { marginHorizontal: 12, marginTop: 12 },
+  chipsScroll: { gap: 6 },
+  chip: { borderWidth: 1, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 16 },
+  chipActive: { backgroundColor: '#185FA5', borderColor: '#185FA5' },
+  chipInactive: { backgroundColor: '#ffffff', borderColor: '#B5D4F4' },
+  chipText: { fontSize: 11 },
+  chipTextActive: { color: '#ffffff', fontWeight: '500' },
+  chipTextInactive: { color: '#185FA5' },
+
+  listContent: { paddingHorizontal: 12, paddingVertical: 12, gap: 7 },
+  emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', paddingVertical: 40 },
+  emptyText: { fontSize: 11, color: '#888780' },
+
+  pagoCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 10,
+    borderWidth: 0.5,
+    borderColor: '#E6F1FB',
+    paddingVertical: 8,
+    paddingHorizontal: 10,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  pagoLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 0.6,
+  },
+  avatar: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#E6F1FB',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  avatarText: {
+    color: '#0C447C',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+  pagoInfoCol: {
+    flex: 1,
+  },
+  alumnoNombre: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#2C2C2A',
+  },
+  pagoMes: {
+    fontSize: 9,
+    color: '#888780',
+    marginTop: 2,
+  },
+  pagoRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    flex: 0.4,
+    gap: 8,
+  },
+  pagoMontoCol: {
+    alignItems: 'flex-end',
+  },
+  pagoMonto: {
+    fontSize: 10,
+    fontWeight: '500',
+    marginBottom: 2,
+  },
+  actionsRow: {
+    flexDirection: 'row',
+    gap: 4,
+  },
+  actionButton: {
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#E1F5EE',
+    borderWidth: 0.5,
+    borderColor: '#a7f3d0',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
 });

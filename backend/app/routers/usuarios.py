@@ -28,6 +28,10 @@ def _serializar_usuario(usuario: Usuario) -> dict:
 		"telefono": usuario.telefono,
 		"rol": usuario.rol.value if isinstance(usuario.rol, RolUsuario) else str(usuario.rol),
 		"creado_en": usuario.creado_en,
+		"placa": usuario.placa,
+		"numero_ruta": usuario.numero_ruta,
+		"nombre_ruta": usuario.nombre_ruta,
+		"fotografia": usuario.fotografia,
 	}
 
 
@@ -64,3 +68,34 @@ async def listar_usuarios(
 		[_serializar_usuario(item) for item in usuarios],
 		f"Se encontraron {len(usuarios)} usuarios",
 	)
+
+
+@router.delete("/{usuario_id}", response_model=dict)
+async def eliminar_usuario(
+	usuario_id: int,
+	db: AsyncSession = Depends(get_db),
+	usuario_actual: Usuario = Depends(obtener_usuario_actual),
+) -> dict:
+	"""
+	Elimina un usuario por ID. Solo admin puede eliminar usuarios.
+	"""
+	if usuario_actual.rol != RolUsuario.admin:
+		raise HTTPException(
+			status_code=status.HTTP_403_FORBIDDEN,
+			detail="No tienes permisos para eliminar usuarios",
+		)
+
+	consulta = select(Usuario).where(Usuario.id == usuario_id)
+	resultado = await db.execute(consulta)
+	u = resultado.scalar_one_or_none()
+
+	if u is None:
+		raise HTTPException(
+			status_code=status.HTTP_404_NOT_FOUND,
+			detail="Usuario no encontrado",
+		)
+
+	await db.delete(u)
+	await db.commit()
+
+	return _respuesta_estandarizada(None, "Usuario eliminado correctamente")

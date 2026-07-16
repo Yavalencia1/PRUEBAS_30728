@@ -8,10 +8,12 @@ import {
   Alert,
   SafeAreaView,
   FlatList,
-  Modal,
   TextInput,
   ScrollView,
+  Image,
+  Modal,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../services/api';
 
@@ -30,9 +32,9 @@ function SimpleSelector({ label, options, selectedValue, onValueChange, disabled
         <Text style={selStyles.triggerText} numberOfLines={1}>
           {selected ? selected.label : 'Seleccionar…'}
         </Text>
-        <Text style={selStyles.arrow}>▾</Text>
+        <Ionicons name="chevron-down" size={16} color="#185FA5" />
       </TouchableOpacity>
-      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+      <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
         <TouchableOpacity style={selStyles.overlay} onPress={() => setOpen(false)} activeOpacity={1}>
           <View style={selStyles.sheet}>
             <Text style={selStyles.sheetTitle}>{label}</Text>
@@ -46,6 +48,7 @@ function SimpleSelector({ label, options, selectedValue, onValueChange, disabled
                   <Text style={[selStyles.optionText, opt.value === selectedValue && selStyles.optionTextSelected]}>
                     {opt.label}
                   </Text>
+                  {opt.value === selectedValue && <Ionicons name="checkmark" size={18} color="#6366f1" />}
                 </TouchableOpacity>
               ))}
             </ScrollView>
@@ -66,23 +69,29 @@ export default function AlumnosScreen() {
   const canDelete = rol === 'admin';
   const canCreate = rol === 'admin' || rol === 'dueno';
 
-  const [alumnos, setAlumnos]     = useState([]);
-  const [padres, setPadres]       = useState([]);
+  const [view, setView] = useState('list'); // 'list' o 'register'
+  const [alumnos, setAlumnos] = useState([]);
+  const [padres, setPadres] = useState([]);
   const [recorridos, setRecorridos] = useState([]);
-  const [paradas, setParadas]     = useState([]);
+  const [paradas, setParadas] = useState([]);
 
-  const [loading, setLoading]           = useState(true);
-  const [error, setError]               = useState(null);
-  const [isModalOpen, setIsModalOpen]   = useState(false);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState(null);
   const [submitLoading, setSubmitLoading] = useState(false);
+
+  // Estados para búsqueda de Padres (Autocompletado)
+  const [parentSearch, setParentSearch] = useState('');
+  const [selectedParent, setSelectedParent] = useState(null);
 
   const emptyForm = {
     nombre: '',
     apellido: '',
     fecha_nacimiento: '',
+    curso: '',
     padre_id: '',
     recorrido_id: '',
     parada_id: '',
+    fotografia: '',
   };
   const [formData, setFormData] = useState(emptyForm);
 
@@ -94,9 +103,6 @@ export default function AlumnosScreen() {
     setLoading(true);
     setError(null);
     try {
-      // El backend ya filtra según el token JWT:
-      // - ADMIN recibe todos los alumnos y todos los recorridos
-      // - DUEÑO recibe solo los alumnos de sus recorridos y sus propios recorridos
       const [alumnosResult, padresResult, recorridosResult] = await Promise.all([
         api.alumnos.list(),
         api.usuarios.listByRol('padre'),
@@ -109,9 +115,6 @@ export default function AlumnosScreen() {
 
       if (padresResult.ok && Array.isArray(padresResult.data)) {
         setPadres(padresResult.data);
-        if (padresResult.data.length > 0) {
-          setFormData(prev => ({ ...prev, padre_id: padresResult.data[0].id.toString() }));
-        }
       }
 
       if (recorridosResult.ok && Array.isArray(recorridosResult.data)) {
@@ -156,19 +159,41 @@ export default function AlumnosScreen() {
     }
   };
 
+  const selectParent = (padre) => {
+    setSelectedParent(padre);
+    handleInputChange('padre_id', padre.id.toString());
+    setParentSearch('');
+  };
+
+  const clearSelectedParent = () => {
+    setSelectedParent(null);
+    handleInputChange('padre_id', '');
+  };
+
+  const handleSimulatePhoto = () => {
+    // Generar un mockup de foto de alumno en uniforme usando avatares predeterminados profesionales
+    const mockPhotos = [
+      'https://images.unsplash.com/photo-1544717305-2782549b5136?auto=format&fit=crop&q=80&w=200',
+      'https://images.unsplash.com/photo-1597524675050-67211a91cfa7?auto=format&fit=crop&q=80&w=200',
+    ];
+    const index = (formData.nombre.length || 0) % 2;
+    handleInputChange('fotografia', mockPhotos[index]);
+    Alert.alert('Foto Cargada', 'Se ha adjuntado la fotografía del alumno con su uniforme.');
+  };
+
   const handleCreate = async () => {
     if (
       !formData.nombre.trim() ||
       !formData.apellido.trim() ||
       !formData.fecha_nacimiento ||
       !formData.padre_id ||
-      !formData.recorrido_id
+      !formData.recorrido_id ||
+      !formData.curso.trim()
     ) {
       Alert.alert('Error', 'Por favor, completa todos los campos requeridos.');
       return;
     }
 
-    // Validación de formato de fecha YYYY-MM-DD
     const dateRegex = /^\d{4}-\d{2}-\d{2}$/;
     if (!dateRegex.test(formData.fecha_nacimiento)) {
       Alert.alert('Error', 'El formato de la fecha debe ser YYYY-MM-DD (ej. 2010-05-20)');
@@ -181,15 +206,18 @@ export default function AlumnosScreen() {
         nombre:           formData.nombre.trim(),
         apellido:         formData.apellido.trim(),
         fecha_nacimiento: formData.fecha_nacimiento,
+        curso:            formData.curso.trim(),
         padre_id:         parseInt(formData.padre_id),
         recorrido_id:     parseInt(formData.recorrido_id),
+        fotografia:       formData.fotografia || null,
         ...(formData.parada_id ? { parada_id: parseInt(formData.parada_id) } : {}),
       };
 
       const result = await api.alumnos.create(payload);
       if (result.ok) {
-        setIsModalOpen(false);
+        setView('list');
         setFormData(emptyForm);
+        setSelectedParent(null);
         fetchDatos();
         Alert.alert('✅ Éxito', 'Alumno guardado correctamente.');
       } else {
@@ -229,12 +257,13 @@ export default function AlumnosScreen() {
     );
   };
 
-  // ─── Opciones para selectores ───────────────────────────────────────────────
-
-  const padreOptions = padres.map(p => ({
-    value: p.id.toString(),
-    label: `${p.nombre} ${p.apellido}`,
-  }));
+  // Filtrado de padres según la barra de búsqueda
+  const filteredPadres = parentSearch.trim()
+    ? padres.filter(p =>
+        `${p.nombre} ${p.apellido}`.toLowerCase().includes(parentSearch.toLowerCase()) ||
+        p.email.toLowerCase().includes(parentSearch.toLowerCase())
+      )
+    : [];
 
   const recorridoOptions = recorridos.map(r => ({
     value: r.id.toString(),
@@ -246,216 +275,284 @@ export default function AlumnosScreen() {
     ...paradas.map(p => ({ value: p.id.toString(), label: p.nombre })),
   ];
 
-  // ─── Render de alumno en la lista ───────────────────────────────────────────
+  // ─── Renderizado de Alumnos ──────────────────────────────────────────────────
 
   const renderAlumno = ({ item }) => (
     <View style={styles.card}>
-      <View style={styles.cardHeader}>
-        <Text style={styles.cardTitle}>{item.nombre} {item.apellido}</Text>
-        <View style={styles.cardHeaderRight}>
-          <Text style={styles.cardId}>#{item.id}</Text>
-          {/* Botón eliminar — solo ADMIN */}
-          {canDelete && (
-            <TouchableOpacity
-              style={styles.deleteBtn}
-              onPress={() => handleDelete(item)}
-            >
-              <Text style={styles.deleteBtnText}>🗑️</Text>
-            </TouchableOpacity>
-          )}
+      <View style={styles.cardLeft}>
+        <Image
+          source={{ uri: item.fotografia || 'https://via.placeholder.com/100?text=Uniforme' }}
+          style={styles.studentImage}
+        />
+        <View style={styles.cardInfoCol}>
+          <Text style={styles.cardTitle} numberOfLines={1}>
+            {item.nombre} {item.apellido}
+          </Text>
+          <Text style={styles.cardSubtitleText}>
+            Curso: {item.curso || 'No registrado'}
+          </Text>
+          <Text style={styles.cardSubtitleText}>
+            Representante: {item.padre_nombre || `ID: ${item.padre_id}`}
+          </Text>
+          <View style={styles.badgeRow}>
+            {item.parada_nombre ? (
+              <View style={styles.badgeInfo}>
+                <Ionicons name="location-outline" size={10} color="#0C447C" style={{ marginRight: 2 }} />
+                <Text style={styles.badgeInfoText} numberOfLines={1}>{item.parada_nombre}</Text>
+              </View>
+            ) : (
+              <View style={styles.badgeNeutral}>
+                <Text style={styles.badgeNeutralText}>Sin parada</Text>
+              </View>
+            )}
+          </View>
         </View>
       </View>
-      <View style={styles.cardBody}>
-        <Text style={styles.infoText}>
-          <Text style={styles.boldText}>Padre: </Text>
-          {item.padre_nombre || `Padre #${item.padre_id}`}
-        </Text>
-        <Text style={styles.infoText}>
-          <Text style={styles.boldText}>Recorrido ID: </Text>
-          {item.recorrido_nombre || item.recorrido_id}
-        </Text>
-        <Text style={styles.infoText}>
-          <Text style={styles.boldText}>Nacimiento: </Text>
-          {new Date(item.fecha_nacimiento).toLocaleDateString('es-ES')}
-        </Text>
-        <View style={styles.badgeContainer}>
-          {item.parada_nombre ? (
-            <View style={styles.badgeInfo}>
-              <Text style={styles.badgeInfoText}>📍 {item.parada_nombre}</Text>
-            </View>
-          ) : (
-            <View style={styles.badgeNeutral}>
-              <Text style={styles.badgeNeutralText}>Sin parada asignada</Text>
-            </View>
-          )}
-        </View>
+      <View style={styles.cardRight}>
+        <Text style={styles.cardId}>#{item.id}</Text>
+        {canDelete && (
+          <TouchableOpacity
+            style={styles.deleteBtn}
+            onPress={() => handleDelete(item)}
+          >
+            <Ionicons name="trash-outline" size={14} color="#A32D2D" />
+          </TouchableOpacity>
+        )}
       </View>
     </View>
   );
 
-  // ─── Loading / Error ────────────────────────────────────────────────────────
-
   if (loading && alumnos.length === 0) {
     return (
       <View style={styles.loadingContainer}>
-        <ActivityIndicator size="large" color="#6366f1" />
+        <ActivityIndicator size="large" color="#185FA5" />
         <Text style={styles.loadingText}>Cargando alumnos…</Text>
       </View>
     );
   }
 
-  // ─── Render principal ───────────────────────────────────────────────────────
-
   return (
     <SafeAreaView style={styles.container}>
-      {/* Header */}
-      <View style={styles.header}>
-        <View style={styles.headerTextContainer}>
-          <Text style={styles.title}>Gestión de Alumnos</Text>
-          <Text style={styles.subtitle}>Registra y asocia estudiantes</Text>
-        </View>
-        {canCreate && (
-          <TouchableOpacity
-            style={styles.btnAdd}
-            onPress={() => {
-              if (padres.length === 0 || recorridos.length === 0) {
-                Alert.alert('Aviso', 'Necesitas padres y recorridos registrados para agregar alumnos.');
-                return;
-              }
-              setIsModalOpen(true);
-            }}
-          >
-            <Text style={styles.btnAddText}>＋</Text>
-          </TouchableOpacity>
+      {/* Barra de Migas de Pan (Breadcrumbs) */}
+      <View style={styles.breadcrumbContainer}>
+        <Ionicons name="settings-outline" size={12} color="#888780" />
+        <Text style={styles.breadcrumbLink} onPress={() => setView('list')}> Gestión</Text>
+        <Text style={styles.breadcrumbSeparator}> &gt; </Text>
+        <Text style={[styles.breadcrumbLink, view === 'list' && styles.breadcrumbActive]} onPress={() => setView('list')}>Alumnos</Text>
+        {view === 'register' && (
+          <>
+            <Text style={styles.breadcrumbSeparator}> &gt; </Text>
+            <Text style={[styles.breadcrumbLink, styles.breadcrumbActive]}>Registrar</Text>
+          </>
         )}
       </View>
 
-      {error && (
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>{error}</Text>
-        </View>
-      )}
+      {view === 'list' ? (
+        // ─── VISTA LISTADO ─────────────────────────────────────────────────────
+        <View style={{ flex: 1 }}>
+          <View style={styles.header}>
+            <View style={styles.headerTextContainer}>
+              <Text style={styles.title}>Alumnos Registrados</Text>
+              <Text style={styles.subtitle}>Listado oficial de estudiantes y rutas</Text>
+            </View>
+            {canCreate && (
+              <TouchableOpacity
+                style={styles.btnAdd}
+                onPress={() => {
+                  if (recorridos.length === 0) {
+                    Alert.alert('Aviso', 'Necesitas recorridos registrados para agregar alumnos.');
+                    return;
+                  }
+                  setView('register');
+                }}
+              >
+                <Ionicons name="add" size={20} color="#ffffff" />
+              </TouchableOpacity>
+            )}
+          </View>
 
-      {alumnos.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyIcon}>👥</Text>
-          <Text style={styles.emptyText}>No hay alumnos registrados en el sistema.</Text>
+          {error && (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          )}
+
+          {alumnos.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Ionicons name="people-outline" size={32} color="#B4B2A9" style={{ marginBottom: 6 }} />
+              <Text style={styles.emptyText}>No hay alumnos registrados en el sistema.</Text>
+            </View>
+          ) : (
+            <FlatList
+              data={alumnos}
+              keyExtractor={(item) => item.id.toString()}
+              renderItem={renderAlumno}
+              contentContainerStyle={styles.listContent}
+            />
+          )}
         </View>
       ) : (
-        <FlatList
-          data={alumnos}
-          keyExtractor={(item) => item.id.toString()}
-          renderItem={renderAlumno}
-          contentContainerStyle={styles.listContent}
-        />
-      )}
+        // ─── VISTA REGISTRO (Nueva pestaña estilo migaja) ──────────────────────
+        <ScrollView style={styles.formContainer} keyboardShouldPersistTaps="handled">
+          <Text style={styles.formTitle}>Registrar Nuevo Alumno</Text>
+          <Text style={styles.formSubtitle}>Ingresa la información académica y del representante.</Text>
 
-      {/* Modal de creación */}
-      <Modal
-        visible={isModalOpen}
-        animationType="slide"
-        transparent
-        onRequestClose={() => setIsModalOpen(false)}
-      >
-        <View style={styles.modalOverlay}>
-          <View style={styles.modalContent}>
-            <View style={styles.modalHeader}>
-              <Text style={styles.modalTitle}>Nuevo Alumno</Text>
-              <TouchableOpacity onPress={() => setIsModalOpen(false)}>
-                <Text style={styles.closeBtn}>✕</Text>
-              </TouchableOpacity>
-            </View>
-
-            <ScrollView style={styles.modalBody} keyboardShouldPersistTaps="handled">
-              <View style={styles.formGroup}>
-                <Text style={styles.label}>Nombre *</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Ej. Mateo"
-                  placeholderTextColor="#9ca3af"
-                  value={formData.nombre}
-                  onChangeText={(val) => handleInputChange('nombre', val)}
-                  editable={!submitLoading}
-                />
-              </View>
-
-              <View style={styles.formGroup}>
-                <Text style={styles.label}>Apellido *</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="Ej. Pérez"
-                  placeholderTextColor="#9ca3af"
-                  value={formData.apellido}
-                  onChangeText={(val) => handleInputChange('apellido', val)}
-                  editable={!submitLoading}
-                />
-              </View>
-
-              <View style={styles.formGroup}>
-                <Text style={styles.label}>Fecha de Nacimiento * (YYYY-MM-DD)</Text>
-                <TextInput
-                  style={styles.input}
-                  placeholder="2010-05-20"
-                  placeholderTextColor="#9ca3af"
-                  value={formData.fecha_nacimiento}
-                  onChangeText={(val) => handleInputChange('fecha_nacimiento', val)}
-                  editable={!submitLoading}
-                />
-              </View>
-
-              <View style={styles.formGroup}>
-                <SimpleSelector
-                  label="Padre / Representante *"
-                  options={padreOptions}
-                  selectedValue={formData.padre_id}
-                  onValueChange={(val) => handleInputChange('padre_id', val)}
-                  disabled={submitLoading}
-                />
-              </View>
-
-              <View style={styles.formGroup}>
-                <SimpleSelector
-                  label="Recorrido asignado *"
-                  options={recorridoOptions}
-                  selectedValue={formData.recorrido_id}
-                  onValueChange={(val) => handleInputChange('recorrido_id', val)}
-                  disabled={submitLoading}
-                />
-              </View>
-
-              <View style={styles.formGroup}>
-                <SimpleSelector
-                  label="Parada habitual (Opcional)"
-                  options={paradaOptions}
-                  selectedValue={formData.parada_id}
-                  onValueChange={(val) => handleInputChange('parada_id', val)}
-                  disabled={submitLoading}
-                />
-              </View>
-            </ScrollView>
-
-            <View style={styles.modalFooter}>
-              <TouchableOpacity
-                style={styles.btnSecondary}
-                onPress={() => setIsModalOpen(false)}
-                disabled={submitLoading}
-              >
-                <Text style={styles.btnSecondaryText}>Cancelar</Text>
-              </TouchableOpacity>
-              <TouchableOpacity
-                style={[styles.btnPrimary, submitLoading && styles.btnDisabled]}
-                onPress={handleCreate}
-                disabled={submitLoading}
-              >
-                {submitLoading
-                  ? <ActivityIndicator color="white" />
-                  : <Text style={styles.btnPrimaryText}>Guardar Alumno</Text>
-                }
-              </TouchableOpacity>
-            </View>
+          {/* Foto del Uniforme */}
+          <View style={styles.photoContainer}>
+            <Image
+              source={{ uri: formData.fotografia || 'https://via.placeholder.com/150?text=Foto+Uniforme' }}
+              style={styles.uploadImagePreview}
+            />
+            <TouchableOpacity style={styles.photoButton} onPress={handleSimulatePhoto}>
+              <Ionicons name="camera-outline" size={16} color="#185FA5" style={{ marginRight: 6 }} />
+              <Text style={styles.photoButtonText}>Fotografía del Uniforme</Text>
+            </TouchableOpacity>
           </View>
-        </View>
-      </Modal>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Nombre *</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Nombre del estudiante"
+              placeholderTextColor="#9ca3af"
+              value={formData.nombre}
+              onChangeText={(val) => handleInputChange('nombre', val)}
+              editable={!submitLoading}
+            />
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Apellido *</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Apellido del estudiante"
+              placeholderTextColor="#9ca3af"
+              value={formData.apellido}
+              onChangeText={(val) => handleInputChange('apellido', val)}
+              editable={!submitLoading}
+            />
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Fecha de Nacimiento * (YYYY-MM-DD)</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Ej. 2015-05-20"
+              placeholderTextColor="#9ca3af"
+              value={formData.fecha_nacimiento}
+              onChangeText={(val) => handleInputChange('fecha_nacimiento', val)}
+              editable={!submitLoading}
+            />
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Curso / Grado *</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Ej. 5to de Básica A"
+              placeholderTextColor="#9ca3af"
+              value={formData.curso}
+              onChangeText={(val) => handleInputChange('curso', val)}
+              editable={!submitLoading}
+            />
+          </View>
+
+          {/* Campo Autocompletado del Padre (Sin listas plegables largas) */}
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Buscar Representante (Padre de Familia) *</Text>
+            {selectedParent ? (
+              <View style={styles.selectedParentCard}>
+                <Ionicons name="person-circle-outline" size={24} color="#185FA5" style={{ marginRight: 8 }} />
+                <View style={{ flex: 1 }}>
+                  <Text style={styles.parentNameText}>{selectedParent.nombre} {selectedParent.apellido}</Text>
+                  <Text style={styles.parentEmailText}>{selectedParent.email}</Text>
+                </View>
+                <TouchableOpacity style={styles.clearParentBtn} onPress={clearSelectedParent}>
+                  <Ionicons name="close-circle" size={20} color="#ef4444" />
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <>
+                <View style={styles.searchBarContainer}>
+                  <Ionicons name="search-outline" size={16} color="#888780" style={styles.searchIcon} />
+                  <TextInput
+                    style={styles.searchInput}
+                    placeholder="Escribe nombre o correo del representante..."
+                    placeholderTextColor="#9ca3af"
+                    value={parentSearch}
+                    onChangeText={setParentSearch}
+                  />
+                </View>
+                {parentSearch.trim().length > 0 && (
+                  <View style={styles.suggestionsContainer}>
+                    {filteredPadres.length === 0 ? (
+                      <Text style={styles.noSuggestionText}>No se encontraron padres con ese término</Text>
+                    ) : (
+                      filteredPadres.map(p => (
+                        <TouchableOpacity
+                          key={p.id}
+                          style={styles.suggestionItem}
+                          onPress={() => selectParent(p)}
+                        >
+                          <Text style={styles.suggestionName}>{p.nombre} {p.apellido}</Text>
+                          <Text style={styles.suggestionEmail}>{p.email}</Text>
+                        </TouchableOpacity>
+                      ))
+                    )}
+                  </View>
+                )}
+              </>
+            )}
+          </View>
+
+          <View style={styles.formGroup}>
+            <SimpleSelector
+              label="Recorrido asignado *"
+              options={recorridoOptions}
+              selectedValue={formData.recorrido_id}
+              onValueChange={(val) => handleInputChange('recorrido_id', val)}
+              disabled={submitLoading}
+            />
+          </View>
+
+          <View style={styles.formGroup}>
+            <SimpleSelector
+              label="Parada habitual (Opcional)"
+              options={paradaOptions}
+              selectedValue={formData.parada_id}
+              onValueChange={(val) => handleInputChange('parada_id', val)}
+              disabled={submitLoading}
+            />
+          </View>
+
+          {/* Botones del formulario */}
+          <View style={styles.formButtons}>
+            <TouchableOpacity
+              style={styles.btnSecondary}
+              onPress={() => {
+                setView('list');
+                setFormData(emptyForm);
+                setSelectedParent(null);
+              }}
+              disabled={submitLoading}
+            >
+              <Text style={styles.btnSecondaryText}>Cancelar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.btnPrimary, submitLoading && styles.btnDisabled]}
+              onPress={handleCreate}
+              disabled={submitLoading}
+            >
+              {submitLoading ? (
+                <ActivityIndicator color="white" />
+              ) : (
+                <Text style={styles.btnPrimaryText}>Guardar Alumno</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+          <View style={{ height: 40 }} />
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 }
@@ -463,72 +560,182 @@ export default function AlumnosScreen() {
 // ─── Estilos ──────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  container:         { flex: 1, backgroundColor: '#f3f4f6' },
-  loadingContainer:  { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  loadingText:       { marginTop: 12, color: '#6366f1', fontSize: 16 },
+  container: { flex: 1, backgroundColor: '#ffffff' },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#ffffff' },
+  loadingText: { marginTop: 8, color: '#888780', fontSize: 13 },
 
-  header:            { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 16, backgroundColor: '#ffffff', borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
+  // Breadcrumbs (Migajas de Pan)
+  breadcrumbContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F4F8FD',
+    borderWidth: 0.5,
+    borderColor: '#E6F1FB',
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginHorizontal: 12,
+    marginTop: 12,
+    marginBottom: 6,
+  },
+  breadcrumbLink: { fontSize: 11, color: '#185FA5', fontWeight: '500' },
+  breadcrumbActive: { color: '#888780' },
+  breadcrumbSeparator: { fontSize: 11, color: '#B5D4F4', marginHorizontal: 4 },
+
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 12 },
   headerTextContainer: { flex: 1 },
-  title:             { fontSize: 20, fontWeight: 'bold', color: '#111827' },
-  subtitle:          { fontSize: 14, color: '#6b7280', marginTop: 2 },
-  btnAdd:            { backgroundColor: '#6366f1', width: 44, height: 44, borderRadius: 22, justifyContent: 'center', alignItems: 'center', elevation: 4 },
-  btnAddText:        { color: '#ffffff', fontSize: 22, lineHeight: 26 },
+  title: { fontSize: 14, fontWeight: '700', color: '#2C2C2A' },
+  subtitle: { fontSize: 11, color: '#888780', marginTop: 2 },
+  btnAdd: { backgroundColor: '#185FA5', width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center', elevation: 2 },
 
-  errorContainer:    { margin: 16, padding: 12, backgroundColor: '#fef2f2', borderWidth: 1, borderColor: '#fca5a5', borderRadius: 8 },
-  errorText:         { color: '#ef4444' },
+  errorContainer: { marginHorizontal: 12, marginVertical: 6, padding: 10, backgroundColor: '#FCEBEB', borderWidth: 0.5, borderColor: '#E6F1FB', borderRadius: 8 },
+  errorText: { color: '#A32D2D', fontSize: 11 },
 
-  emptyContainer:    { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 },
-  emptyIcon:         { fontSize: 64 },
-  emptyText:         { marginTop: 16, fontSize: 16, color: '#6b7280', textAlign: 'center' },
+  emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 },
+  emptyText: { marginTop: 8, fontSize: 11, color: '#888780', textAlign: 'center' },
 
-  listContent:       { padding: 16, gap: 12 },
-  card:              { backgroundColor: '#ffffff', borderRadius: 12, padding: 16, elevation: 1 },
-  cardHeader:        { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 12, paddingBottom: 12, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
-  cardHeaderRight:   { flexDirection: 'row', alignItems: 'center', gap: 8 },
-  cardTitle:         { fontSize: 16, fontWeight: 'bold', color: '#1f2937', flex: 1 },
-  cardId:            { fontSize: 14, color: '#9ca3af' },
-  deleteBtn:         { width: 32, height: 32, borderRadius: 6, backgroundColor: '#fee2e2', justifyContent: 'center', alignItems: 'center' },
-  deleteBtnText:     { fontSize: 16 },
+  listContent: { paddingHorizontal: 12, paddingVertical: 6, gap: 7 },
+  card: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    borderWidth: 0.5,
+    borderColor: '#E6F1FB',
+    padding: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  cardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 0.85,
+  },
+  studentImage: {
+    width: 52,
+    height: 52,
+    borderRadius: 8,
+    backgroundColor: '#E6F1FB',
+    marginRight: 10,
+  },
+  cardInfoCol: {
+    flex: 1,
+  },
+  cardTitle: { fontSize: 12, fontWeight: '700', color: '#2C2C2A', marginBottom: 2 },
+  cardSubtitleText: { fontSize: 10, color: '#888780', marginTop: 1 },
+  badgeRow: { marginTop: 4, flexDirection: 'row' },
+  badgeInfo: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#E6F1FB', paddingVertical: 1.5, paddingHorizontal: 6, borderRadius: 8 },
+  badgeInfoText: { color: '#0C447C', fontSize: 8, fontWeight: '600' },
+  badgeNeutral: { backgroundColor: '#F4F8FD', paddingVertical: 1.5, paddingHorizontal: 6, borderRadius: 8 },
+  badgeNeutralText: { color: '#888780', fontSize: 8, fontWeight: '500' },
 
-  cardBody:          { gap: 6 },
-  infoText:          { fontSize: 14, color: '#4b5563' },
-  boldText:          { fontWeight: '600', color: '#374151' },
-  badgeContainer:    { marginTop: 8, alignItems: 'flex-start' },
-  badgeInfo:         { backgroundColor: '#e0e7ff', paddingVertical: 4, paddingHorizontal: 8, borderRadius: 12 },
-  badgeInfoText:     { color: '#4338ca', fontSize: 12, fontWeight: '600' },
-  badgeNeutral:      { backgroundColor: '#f3f4f6', paddingVertical: 4, paddingHorizontal: 8, borderRadius: 12 },
-  badgeNeutralText:  { color: '#4b5563', fontSize: 12, fontWeight: '500' },
+  cardRight: {
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    height: 52,
+    flex: 0.15,
+  },
+  cardId: { fontSize: 10, color: '#B4B2A9', fontWeight: '600' },
+  deleteBtn: { width: 24, height: 24, borderRadius: 12, backgroundColor: '#FCEBEB', borderWidth: 0.5, borderColor: '#fca5a5', justifyContent: 'center', alignItems: 'center' },
 
-  modalOverlay:      { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalContent:      { backgroundColor: '#ffffff', borderTopLeftRadius: 20, borderTopRightRadius: 20, maxHeight: '90%' },
-  modalHeader:       { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 20, borderBottomWidth: 1, borderBottomColor: '#e5e7eb' },
-  modalTitle:        { fontSize: 18, fontWeight: 'bold', color: '#111827' },
-  closeBtn:          { fontSize: 20, color: '#6b7280', padding: 4 },
-  modalBody:         { padding: 20 },
-  formGroup:         { marginBottom: 4 },
-  label:             { fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: 8 },
-  input:             { borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, fontSize: 16, color: '#1f2937', backgroundColor: '#f9fafb', marginBottom: 12 },
+  // Formulario de Registro
+  formContainer: { paddingHorizontal: 12, paddingVertical: 12 },
+  formTitle: { fontSize: 14, fontWeight: '700', color: '#2C2C2A', marginBottom: 2 },
+  formSubtitle: { fontSize: 11, color: '#888780', marginBottom: 16 },
 
-  modalFooter:       { flexDirection: 'row', padding: 20, borderTopWidth: 1, borderTopColor: '#e5e7eb', gap: 12 },
-  btnSecondary:      { flex: 1, paddingVertical: 14, borderRadius: 8, backgroundColor: '#f3f4f6', alignItems: 'center' },
-  btnSecondaryText:  { color: '#374151', fontSize: 16, fontWeight: '600' },
-  btnPrimary:        { flex: 1, paddingVertical: 14, borderRadius: 8, backgroundColor: '#6366f1', alignItems: 'center', justifyContent: 'center' },
-  btnPrimaryText:    { color: '#ffffff', fontSize: 16, fontWeight: 'bold' },
-  btnDisabled:       { backgroundColor: '#a5b4fc' },
+  photoContainer: {
+    alignItems: 'center',
+    marginBottom: 16,
+    gap: 8,
+  },
+  uploadImagePreview: {
+    width: 70,
+    height: 70,
+    borderRadius: 35,
+    borderWidth: 1,
+    borderColor: '#E6F1FB',
+    backgroundColor: '#F4F8FD',
+  },
+  photoButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#E6F1FB',
+    paddingVertical: 6,
+    paddingHorizontal: 12,
+    borderRadius: 16,
+  },
+  photoButtonText: {
+    fontSize: 10,
+    color: '#185FA5',
+    fontWeight: '700',
+  },
+
+  formGroup: { marginBottom: 12 },
+  label: { fontSize: 11, fontWeight: '600', color: '#2C2C2A', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 },
+  input: { borderWidth: 1, borderColor: '#E6F1FB', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, fontSize: 13, color: '#2C2C2A', backgroundColor: '#F4F8FD' },
+
+  // Autocomplete del Representante
+  selectedParentCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#a7f3d0',
+    backgroundColor: '#ecfdf5',
+    borderRadius: 12,
+    padding: 10,
+  },
+  parentNameText: { fontSize: 12, fontWeight: '600', color: '#0F6E56' },
+  parentEmailText: { fontSize: 10, color: '#10b981' },
+  clearParentBtn: { padding: 2 },
+
+  searchBarContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#E6F1FB',
+    borderRadius: 12,
+    backgroundColor: '#F4F8FD',
+    paddingHorizontal: 12,
+  },
+  searchIcon: { marginRight: 8 },
+  searchInput: { flex: 1, paddingVertical: 10, fontSize: 13, color: '#2C2C2A' },
+  suggestionsContainer: {
+    borderWidth: 1,
+    borderColor: '#E6F1FB',
+    borderRadius: 12,
+    backgroundColor: '#ffffff',
+    marginTop: 4,
+    maxHeight: 150,
+    overflow: 'hidden',
+  },
+  suggestionItem: {
+    paddingVertical: 10,
+    paddingHorizontal: 12,
+    borderBottomWidth: 0.5,
+    borderBottomColor: '#E6F1FB',
+  },
+  suggestionName: { fontSize: 12, fontWeight: '600', color: '#2C2C2A' },
+  suggestionEmail: { fontSize: 10, color: '#888780' },
+  noSuggestionText: { padding: 12, fontSize: 11, color: '#888780', fontStyle: 'italic', textAlign: 'center' },
+
+  formButtons: { flexDirection: 'row', gap: 7, marginTop: 12 },
+  btnSecondary: { flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: '#FCEBEB', borderWidth: 0.5, borderColor: '#fca5a5', alignItems: 'center' },
+  btnSecondaryText: { color: '#A32D2D', fontSize: 13, fontWeight: '600' },
+  btnPrimary: { flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: '#185FA5', alignItems: 'center', justifyContent: 'center' },
+  btnPrimaryText: { color: '#ffffff', fontSize: 13, fontWeight: '700' },
+  btnDisabled: { opacity: 0.6 },
 });
 
 const selStyles = StyleSheet.create({
-  container:          { marginBottom: 12 },
-  label:              { fontSize: 14, fontWeight: '600', color: '#374151', marginBottom: 8 },
-  trigger:            { borderWidth: 1, borderColor: '#d1d5db', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 12, backgroundColor: '#f9fafb', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  container:          { marginBottom: 0 },
+  label:              { fontSize: 11, fontWeight: '600', color: '#2C2C2A', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 },
+  trigger:            { borderWidth: 1, borderColor: '#E6F1FB', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 11, backgroundColor: '#F4F8FD', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   disabled:           { opacity: 0.5 },
-  triggerText:        { fontSize: 16, color: '#1f2937', flex: 1 },
-  arrow:              { fontSize: 12, color: '#9ca3af' },
+  triggerText:        { fontSize: 13, color: '#2C2C2A', flex: 1, fontWeight: '500' },
   overlay:            { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  sheet:              { backgroundColor: '#fff', borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20, paddingBottom: 40, maxHeight: '60%' },
-  sheetTitle:         { fontSize: 16, fontWeight: '700', color: '#1a202c', marginBottom: 12 },
-  option:             { paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
-  optionSelected:     { backgroundColor: '#eef2ff', borderRadius: 8, paddingHorizontal: 8 },
-  optionText:         { fontSize: 15, color: '#1a202c' },
-  optionTextSelected: { color: '#6366f1', fontWeight: '600' },
+  sheet:              { backgroundColor: '#ffffff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 40, maxHeight: '60%' },
+  sheetTitle:         { fontSize: 14, fontWeight: '700', color: '#2C2C2A', marginBottom: 12, textAlign: 'center' },
+  option:             { paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#edf2f7', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  optionSelected:     { backgroundColor: '#f5f3ff', borderRadius: 12, paddingHorizontal: 12 },
+  optionText:         { fontSize: 14, color: '#4a5568', fontWeight: '500' },
+  optionTextSelected: { color: '#6366f1', fontWeight: '700' },
 });

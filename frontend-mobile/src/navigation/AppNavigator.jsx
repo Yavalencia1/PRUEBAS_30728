@@ -33,6 +33,7 @@ import RutasScreen from '../screens/rutas/RutasScreen';
 import PagosScreen from '../screens/pagos/PagosScreen';
 import ParadasScreen from '../screens/paradas/ParadasScreen';
 import GestionRutasScreen from '../screens/gestion/GestionRutasScreen';
+import ConductoresScreen from '../screens/conductores/ConductoresScreen';
 
 const Stack = createNativeStackNavigator();
 const Tab = createBottomTabNavigator();
@@ -50,6 +51,7 @@ const screenRegistry = {
   Paradas: ParadasScreen,
   GestionRutas: GestionRutasScreen,
   Alumnos: AlumnosScreen,
+  Conductores: ConductoresScreen,
   Profile: ProfileScreen,
 };
 
@@ -59,11 +61,9 @@ function BellButton() {
   const { unreadCount } = useNotificationCount();
   return (
     <TouchableOpacity onPress={() => navigation.navigate('Notificaciones')} style={styles.bell}>
-      <Ionicons name="notifications-outline" size={24} color="#1a202c" />
+      <Ionicons name="notifications" size={16} color="#185FA5" />
       {unreadCount > 0 && (
-        <View style={styles.badge}>
-          <Text style={styles.badgeText}>{unreadCount > 99 ? '99+' : String(unreadCount)}</Text>
-        </View>
+        <View style={styles.badge} />
       )}
     </TouchableOpacity>
   );
@@ -92,32 +92,41 @@ function MainTabs() {
     <Tab.Navigator
       screenOptions={() => ({
         headerShown: true,
+        headerTitleAlign: 'center',
         headerLeft: () => (
           <TouchableOpacity onPress={() => navigation.openDrawer()} style={styles.drawerToggle}>
-            <Ionicons name="menu-outline" size={24} color="#1a202c" />
+            <Ionicons name="menu-outline" size={24} color="#185FA5" />
           </TouchableOpacity>
         ),
         headerRight: () => <BellButton />,
-        tabBarIcon: ({ color, size }) => {
-          // El ícono se resuelve por nombre de ruta en el render de cada Tab.Screen.
-          return <Ionicons name="ellipse-outline" size={size} color={color} />;
+        tabBarActiveTintColor: '#185FA5',
+        tabBarInactiveTintColor: '#888780',
+        tabBarLabelStyle: {
+          fontSize: 8,
+          fontWeight: '500',
         },
-        tabBarActiveTintColor: Colors.primary,
-        tabBarInactiveTintColor: '#a0aec0',
         tabBarStyle: {
           backgroundColor: '#ffffff',
-          borderTopColor: '#e2e8f0',
-          borderTopWidth: 1,
-          height: 60 + insets.bottom,
-          paddingBottom: insets.bottom,
+          borderTopColor: '#E6F1FB',
+          borderTopWidth: 0.5,
+          height: 52 + insets.bottom,
+          paddingBottom: insets.bottom + 4,
+          elevation: 0,
+          shadowOpacity: 0,
         },
         headerStyle: {
           backgroundColor: '#ffffff',
-          borderBottomColor: '#e2e8f0',
-          borderBottomWidth: 1,
+          borderBottomColor: '#E6F1FB',
+          borderBottomWidth: 0.5,
+          elevation: 0,
+          shadowOpacity: 0,
         },
-        headerTintColor: '#1a202c',
-        headerTitleStyle: { fontWeight: '600' },
+        headerTintColor: '#2C2C2A',
+        headerTitleStyle: {
+          fontSize: 14,
+          fontWeight: '500',
+          color: '#2C2C2A',
+        },
       })}
     >
       {primary.map((item) => (
@@ -128,8 +137,8 @@ function MainTabs() {
           options={{
             title: item.label,
             tabBarLabel: item.label,
-            tabBarIcon: ({ color, size }) => (
-              <Ionicons name={item.icon} size={size} color={color} />
+            tabBarIcon: ({ color }) => (
+              <Ionicons name={item.icon} size={20} color={color} />
             ),
           }}
         />
@@ -162,21 +171,28 @@ function AppDrawer() {
       drawerContent={(props) => <CustomDrawerContent {...props} />}
       screenOptions={({ navigation }) => ({
         headerShown: true,
+        headerTitleAlign: 'center',
         headerRight: () => <BellButton />,
         headerLeft: () => (
           <TouchableOpacity onPress={() => navigation.openDrawer()} style={styles.drawerToggle}>
-            <Ionicons name="menu-outline" size={24} color="#1a202c" />
+            <Ionicons name="menu-outline" size={24} color="#185FA5" />
           </TouchableOpacity>
         ),
         headerStyle: {
           backgroundColor: '#ffffff',
-          borderBottomColor: '#e2e8f0',
-          borderBottomWidth: 1,
+          borderBottomColor: '#E6F1FB',
+          borderBottomWidth: 0.5,
+          elevation: 0,
+          shadowOpacity: 0,
         },
-        headerTintColor: '#1a202c',
-        headerTitleStyle: { fontWeight: '600' },
-        drawerActiveTintColor: Colors.primary,
-        drawerInactiveTintColor: '#4a5568',
+        headerTintColor: '#2C2C2A',
+        headerTitleStyle: {
+          fontSize: 14,
+          fontWeight: '500',
+          color: '#2C2C2A',
+        },
+        drawerActiveTintColor: '#185FA5',
+        drawerInactiveTintColor: '#888780',
       })}
     >
       <Drawer.Screen
@@ -270,25 +286,19 @@ const styles = StyleSheet.create({
     marginRight: 14,
     width: 28,
     height: 28,
+    borderRadius: 14,
+    backgroundColor: '#E6F1FB',
     justifyContent: 'center',
     alignItems: 'center',
   },
   badge: {
     position: 'absolute',
-    top: -2,
-    right: -4,
+    top: 2,
+    right: 2,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
     backgroundColor: '#ef4444',
-    borderRadius: 10,
-    minWidth: 18,
-    height: 18,
-    justifyContent: 'center',
-    alignItems: 'center',
-    paddingHorizontal: 4,
-  },
-  badgeText: {
-    color: '#ffffff',
-    fontSize: 10,
-    fontWeight: '700',
   },
   drawerToggle: {
     marginLeft: 14,

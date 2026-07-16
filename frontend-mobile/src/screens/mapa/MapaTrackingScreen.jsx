@@ -6,14 +6,27 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   ScrollView,
+  Platform,
 } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
-import MapView, { Marker } from 'react-native-maps';
 import { useAuth } from '../../context/AuthContext';
 import { api } from '../../services/api';
 
 // Centro por defecto (Quito), coherente con los otros frontends.
 const QUITO = { latitude: -0.180653, longitude: -78.467834, latitudeDelta: 0.02, longitudeDelta: 0.02 };
+
+// Importar react-native-maps de forma condicional para evitar crashes en la web
+let MapView = null;
+let Marker = null;
+if (Platform.OS !== 'web') {
+  try {
+    const Maps = require('react-native-maps');
+    MapView = Maps.default;
+    Marker = Maps.Marker;
+  } catch (e) {
+    console.warn('No se pudo cargar react-native-maps de forma nativa:', e);
+  }
+}
 
 export default function MapaTrackingScreen() {
   const { token, usuario } = useAuth();
@@ -176,6 +189,7 @@ export default function MapaTrackingScreen() {
   };
 
   useEffect(() => {
+    if (!usuario) return;
     if (showSelector) {
       cargarRecorridos();
     } else {
@@ -183,7 +197,7 @@ export default function MapaTrackingScreen() {
     }
     return () => closeWs();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [usuario, showSelector]);
 
   const onSelectRecorrido = (id) => {
     if (id === selectedRecorridoId) return;
@@ -203,10 +217,27 @@ export default function MapaTrackingScreen() {
   const selectedRecorrido = recorridos.find((r) => r.id === selectedRecorridoId);
   const showMap = hasActiveSession || stops.length > 0;
 
+  // ─── Renderizado Web Fallback ──────────────────────────────────────────────
+  if (Platform.OS === 'web') {
+    return (
+      <View style={styles.webFallbackContainer}>
+        <View style={styles.webFallbackCard}>
+          <View style={styles.webFallbackIconBox}>
+            <Ionicons name="map-outline" size={32} color="#185FA5" />
+          </View>
+          <Text style={styles.webFallbackTitle}>El mapa no está disponible en la web</Text>
+          <Text style={styles.webFallbackSubtext}>
+            Para visualizar el rastreo GPS en tiempo real de los autobuses, por favor abre la aplicación en un dispositivo móvil Android o iOS (emulador o dispositivo físico con Expo Go).
+          </Text>
+        </View>
+      </View>
+    );
+  }
+
   if (loading) {
     return (
       <View style={styles.center}>
-        <ActivityIndicator size="large" color="#6366f1" />
+        <ActivityIndicator size="large" color="#185FA5" />
         <Text style={styles.loadingText}>Buscando recorridos activos…</Text>
       </View>
     );
@@ -216,7 +247,7 @@ export default function MapaTrackingScreen() {
     return (
       <View style={styles.empty}>
         <View style={styles.emptyIconBox}>
-          <Ionicons name="map-outline" size={40} color="#a0aec0" />
+          <Ionicons name="map-outline" size={40} color="#B4B2A9" />
         </View>
         <Text style={styles.emptyTitle}>El recorrido aún no ha iniciado</Text>
         <Text style={styles.emptySubtext}>
@@ -241,13 +272,13 @@ export default function MapaTrackingScreen() {
               return (
                 <TouchableOpacity
                   key={r.id.toString()}
-                  style={[styles.chip, active && styles.chipSelected]}
+                  style={[styles.chip, active ? styles.chipActive : styles.chipInactive]}
                   onPress={() => onSelectRecorrido(r.id)}
                 >
-                  <Text style={[styles.chipText, active && styles.chipTextSelected]}>{r.nombre}</Text>
+                  <Text style={[styles.chipText, active ? styles.chipTextActive : styles.chipTextInactive]}>{r.nombre}</Text>
                   {Array.isArray(hijos) && hijos.length > 0 && (
                     <Text
-                      style={[styles.chipSubText, active && styles.chipSubTextSelected]}
+                      style={[styles.chipSubText, active ? styles.chipSubTextActive : styles.chipSubTextInactive]}
                       numberOfLines={1}
                       ellipsizeMode="tail"
                     >
@@ -261,79 +292,70 @@ export default function MapaTrackingScreen() {
         </View>
       )}
 
-      <View style={styles.mapWrapper}>
-      <MapView
-        ref={mapRef}
-        style={styles.map}
-        initialRegion={{ ...busLocation, latitudeDelta: 0.02, longitudeDelta: 0.02 }}
-        showsUserLocation={false}
-      >
-        {hasActiveSession && (
-          <Marker coordinate={busLocation} pinColor="#6366f1" title="Bus escolar" />
-        )}
-        {stops.map((p) => (
-          <Marker
-            key={p.id?.toString()}
-            coordinate={{
-              latitude: parseFloat(p.latitud),
-              longitude: parseFloat(p.longitud),
-            }}
-            pinColor="#10b981"
-            title={p.nombre}
-          />
-        ))}
-      </MapView>
-      </View>
+      {MapView && (
+        <View style={styles.mapWrapper}>
+          <MapView
+            ref={mapRef}
+            style={styles.map}
+            initialRegion={{ ...busLocation, latitudeDelta: 0.02, longitudeDelta: 0.02 }}
+            showsUserLocation={false}
+          >
+            {hasActiveSession && Marker && (
+              <Marker coordinate={busLocation} pinColor="#185FA5" title="Bus escolar" />
+            )}
+            {stops.map((p) => {
+              if (!Marker) return null;
+              return (
+                <Marker
+                  key={p.id?.toString()}
+                  coordinate={{
+                    latitude: parseFloat(p.latitud),
+                    longitude: parseFloat(p.longitud),
+                  }}
+                  pinColor="#10b981"
+                  title={p.nombre}
+                />
+              );
+            })}
+          </MapView>
+        </View>
+      )}
 
-      {/* Panel flotante inferior */}
+      {/* Panel flotante inferior personalizado */}
       <View style={styles.panel}>
         {hasActiveSession ? (
-          <>
-            <View style={styles.panelRow}>
-              <Text style={styles.panelLabel}>Rastreo GPS en Tiempo Real</Text>
-              <View style={styles.statusBadge}>
-                {isWsConnected ? (
-                  <>
-                    <Ionicons name="wifi-outline" size={14} color="#10b981" />
-                    <Text style={[styles.statusText, { color: '#10b981' }]}>Conexión en vivo</Text>
-                  </>
-                ) : (
-                  <>
-                    <Ionicons name="wifi-outline" size={14} color="#ef4444" />
-                    <Text style={[styles.statusText, { color: '#ef4444' }]}>Desconectado</Text>
-                  </>
-                )}
+          <View style={styles.activePanelCol}>
+            <View style={styles.activePanelHeader}>
+              <View style={styles.busIconContainer}>
+                <Ionicons name="bus" size={16} color="#FFFFFF" />
               </View>
+              <View style={{ flex: 1, marginLeft: 10 }}>
+                <Text style={styles.activePanelTitle}>Recorrido en curso</Text>
+                <Text style={styles.activePanelEta}>Llega en ~8 min</Text>
+              </View>
+              <TouchableOpacity style={styles.centerLocationButton} onPress={handleCentrar}>
+                <Ionicons name="locate-outline" size={16} color="#185FA5" />
+              </TouchableOpacity>
             </View>
-            <Text style={styles.eta}>Autobús en ruta</Text>
-            <Text style={styles.lastSignal}>
-              Última señal recibida: {lastUpdate ? lastUpdate.toLocaleTimeString('es-ES') : 'Esperando primer reporte…'}
+            {/* Barra de progreso */}
+            <View style={styles.progressBarBg}>
+              <View style={styles.progressBarFill} />
+            </View>
+            <Text style={styles.lastUpdateText}>
+              Última actualización: {lastUpdate ? lastUpdate.toLocaleTimeString('es-ES') : 'En vivo'}
             </Text>
-            <TouchableOpacity style={styles.centerButton} onPress={handleCentrar}>
-              <Ionicons name="locate-outline" size={16} color="#ffffff" />
-              <Text style={styles.centerButtonText}>Centrar en bus</Text>
-            </TouchableOpacity>
-          </>
+          </View>
         ) : (
-          <>
-            <View style={styles.panelRow}>
-              <Text style={styles.panelLabel}>Sin sesión activa</Text>
-              <Ionicons name="information-circle-outline" size={16} color="#f59e0b" />
+          <View style={styles.inactivePanelRow}>
+            <Ionicons name="bus-outline" size={20} color="#B4B2A9" style={{ marginRight: 10 }} />
+            <View style={{ flex: 1 }}>
+              <Text style={styles.inactivePanelTitle}>El recorrido aún no ha iniciado</Text>
+              <Text style={styles.inactivePanelSubtext}>Recibirás una notificación cuando comience</Text>
             </View>
-            <Text style={styles.eta}>
-              Recorrido: {selectedRecorrido?.nombre || '—'}
-              {rol === 'padre' && selectedRecorrido && (childrenByRecorrido[selectedRecorrido.id] || []).length > 0
-                ? ` — ${(childrenByRecorrido[selectedRecorrido.id] || []).join(', ')}`
-                : ''}
-            </Text>
-            <Text style={styles.lastSignal}>
-              Mostrando paradas del recorrido. El bus aparecerá cuando el conductor inicie la ruta.
-            </Text>
-            <TouchableOpacity style={styles.centerButton} onPress={() => verificarSesionActiva(selectedRecorridoId)}>
-              <Ionicons name="refresh-outline" size={16} color="#ffffff" />
-              <Text style={styles.centerButtonText}>Verificar Estado</Text>
+            <TouchableOpacity style={styles.refreshBadgeButton} onPress={() => verificarSesionActiva(selectedRecorridoId)}>
+              <Ionicons name="refresh-outline" size={16} color="#185FA5" />
             </TouchableOpacity>
-          </>
+          </View>
         )}
       </View>
     </View>
@@ -341,94 +363,196 @@ export default function MapaTrackingScreen() {
 }
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: '#f8f9fa' },
-  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#f8f9fa', gap: 12 },
-  loadingText: { color: '#718096', fontSize: 16 },
+  container: { flex: 1, backgroundColor: '#ffffff' },
+  center: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#ffffff', gap: 12 },
+  loadingText: { color: '#888780', fontSize: 13 },
   map: { flex: 1 },
+  mapWrapper: { flex: 1 },
+
+  // Web Fallback styles
+  webFallbackContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
+    padding: 24,
+  },
+  webFallbackCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    borderWidth: 0.5,
+    borderColor: '#E6F1FB',
+    padding: 24,
+    alignItems: 'center',
+    maxWidth: 400,
+    shadowColor: '#185FA5',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.05,
+    shadowRadius: 12,
+    elevation: 3,
+  },
+  webFallbackIconBox: {
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#E6F1FB',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  webFallbackTitle: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#2C2C2A',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  webFallbackSubtext: {
+    fontSize: 11,
+    color: '#888780',
+    textAlign: 'center',
+    lineHeight: 16,
+  },
 
   selectorBar: {
     backgroundColor: '#ffffff',
-    borderBottomWidth: 1,
-    borderColor: '#e2e8f0',
+    borderBottomWidth: 0.5,
+    borderColor: '#E6F1FB',
     paddingVertical: 10,
     flexShrink: 0,
   },
-  selectorScroll: { paddingHorizontal: 12, gap: 8 },
-  mapWrapper: { flex: 1 },
+  selectorScroll: { paddingHorizontal: 12, gap: 6 },
   chip: {
-    paddingHorizontal: 16,
-    paddingVertical: 8,
-    borderRadius: 20,
-    backgroundColor: '#eef2ff',
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 16,
     borderWidth: 1,
-    borderColor: '#c7d2fe',
-    marginRight: 8,
   },
-  chipSelected: { backgroundColor: '#6366f1', borderColor: '#6366f1' },
-  chipText: { color: '#4f46e5', fontWeight: '600', fontSize: 14 },
-  chipTextSelected: { color: '#ffffff' },
-  chipSubText: { color: '#6b7280', fontSize: 11, marginTop: 2, maxWidth: 160 },
-  chipSubTextSelected: { color: '#e0e7ff' },
+  chipActive: { backgroundColor: '#185FA5', borderColor: '#185FA5' },
+  chipInactive: { backgroundColor: '#ffffff', borderColor: '#B5D4F4' },
+  chipText: { fontSize: 11 },
+  chipTextActive: { color: '#ffffff', fontWeight: '500' },
+  chipTextInactive: { color: '#185FA5' },
+  chipSubText: { fontSize: 9, marginTop: 1, maxWidth: 150 },
+  chipSubTextActive: { color: '#E6F1FB' },
+  chipSubTextInactive: { color: '#888780' },
 
   empty: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 32,
-    backgroundColor: '#f8f9fa',
+    paddingHorizontal: 24,
+    backgroundColor: '#ffffff',
   },
   emptyIconBox: {
-    width: 80,
-    height: 80,
-    borderRadius: 40,
-    backgroundColor: '#e2e8f0',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#E6F1FB',
     justifyContent: 'center',
     alignItems: 'center',
-    marginBottom: 20,
+    marginBottom: 16,
   },
-  emptyTitle: { fontSize: 20, fontWeight: '700', color: '#1a202c', textAlign: 'center', marginBottom: 8 },
-  emptySubtext: { fontSize: 14, color: '#718096', textAlign: 'center', lineHeight: 20, maxWidth: 320 },
+  emptyTitle: { fontSize: 14, fontWeight: '500', color: '#2C2C2A', textAlign: 'center', marginBottom: 4 },
+  emptySubtext: { fontSize: 11, color: '#888780', textAlign: 'center', lineHeight: 16, maxWidth: 280 },
   verifyButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 8,
-    backgroundColor: '#6366f1',
-    paddingHorizontal: 18,
-    paddingVertical: 12,
-    borderRadius: 8,
+    gap: 6,
+    backgroundColor: '#185FA5',
+    paddingHorizontal: 16,
+    paddingVertical: 10,
+    borderRadius: 12,
     marginTop: 16,
   },
-  verifyButtonText: { color: '#ffffff', fontWeight: '600', fontSize: 15 },
+  verifyButtonText: { color: '#ffffff', fontWeight: '500', fontSize: 12 },
 
   panel: {
     position: 'absolute',
-    left: 16,
-    right: 16,
-    bottom: 20,
+    left: 12,
+    right: 12,
+    bottom: 12,
     backgroundColor: '#ffffff',
     borderRadius: 12,
-    padding: 14,
-    borderWidth: 1,
-    borderColor: '#e2e8f0',
-    shadowColor: '#000',
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 6,
+    borderWidth: 0.5,
+    borderColor: '#E6F1FB',
+    padding: 12,
+    shadowColor: '#185FA5',
+    shadowOpacity: 0.08,
+    shadowRadius: 10,
+    elevation: 4,
   },
-  panelRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', marginBottom: 8 },
-  panelLabel: { fontSize: 13, color: '#718096', fontWeight: '600' },
-  statusBadge: { flexDirection: 'row', alignItems: 'center', gap: 6 },
-  statusText: { fontSize: 12, fontWeight: '700' },
-  eta: { fontSize: 18, fontWeight: '800', color: '#6366f1', marginBottom: 4 },
-  lastSignal: { fontSize: 12, color: '#718096', marginBottom: 10 },
-  centerButton: {
+  inactivePanelRow: {
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: '#6366f1',
-    paddingVertical: 10,
-    borderRadius: 8,
   },
-  centerButtonText: { color: '#ffffff', fontWeight: '600', fontSize: 14 },
+  inactivePanelTitle: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#2C2C2A',
+    marginBottom: 2,
+  },
+  inactivePanelSubtext: {
+    fontSize: 10,
+    color: '#888780',
+  },
+  refreshBadgeButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#E6F1FB',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  activePanelCol: {
+    gap: 8,
+  },
+  activePanelHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+  },
+  busIconContainer: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#185FA5',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  activePanelTitle: {
+    fontSize: 12,
+    fontWeight: '500',
+    color: '#185FA5',
+    marginBottom: 2,
+  },
+  activePanelEta: {
+    fontSize: 20,
+    fontWeight: '500',
+    color: '#1D9E75',
+  },
+  centerLocationButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: '#E6F1FB',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  progressBarBg: {
+    width: '100%',
+    height: 4,
+    backgroundColor: '#E6F1FB',
+    borderRadius: 2,
+    overflow: 'hidden',
+    marginVertical: 4,
+  },
+  progressBarFill: {
+    width: '40%',
+    height: '100%',
+    backgroundColor: '#185FA5',
+  },
+  lastUpdateText: {
+    fontSize: 9,
+    color: '#888780',
+  },
 });

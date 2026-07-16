@@ -16,7 +16,10 @@
         "UIBackgroundModes": [
           "location",
           "fetch"
-        ]
+        ],
+        "NSLocationWhenInUseUsageDescription": "Permite a RouteKids usar tu ubicacion para enviar la posicion de la ruta al backend.",
+        "NSLocationAlwaysUsageDescription": "Permite a RouteKids rastrear tu ubicacion en segundo plano mientras estas conduciendo.",
+        "NSLocationAlwaysAndWhenInUseUsageDescription": "Permite a RouteKids rastrear tu ubicacion en segundo plano mientras estas conduciendo."
       }
     },
     "android": {

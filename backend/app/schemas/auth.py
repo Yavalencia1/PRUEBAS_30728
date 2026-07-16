@@ -12,6 +12,10 @@ class RegistroRequest(BaseModel):
     password: str = Field(min_length=8, max_length=128)
     confirmar_password: str
     rol: str = Field(default="padre")
+    placa: str | None = Field(default=None, max_length=20)
+    numero_ruta: str | None = Field(default=None, max_length=50)
+    nombre_ruta: str | None = Field(default=None, max_length=100)
+    fotografia: str | None = Field(default=None, max_length=500)
 
     @field_validator("nombre", "apellido")
     @classmethod
@@ -75,3 +79,7 @@ class AuthMeResponse(BaseModel):
     email: EmailStr
     telefono: str | None
     rol: str
+    placa: str | None = None
+    numero_ruta: str | None = None
+    nombre_ruta: str | None = None
+    fotografia: str | None = None

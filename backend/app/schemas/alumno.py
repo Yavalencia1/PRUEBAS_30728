@@ -8,6 +8,8 @@ class AlumnoBase(BaseModel):
     nombre: str = Field(min_length=1, max_length=100)
     apellido: str = Field(min_length=1, max_length=100)
     fecha_nacimiento: date
+    curso: str | None = Field(default=None, max_length=100)
+    fotografia: str | None = Field(default=None, max_length=500)
 
 
 class AlumnoCrear(AlumnoBase):
@@ -20,6 +22,8 @@ class AlumnoActualizar(BaseModel):
     nombre: str | None = Field(default=None, min_length=1, max_length=100)
     apellido: str | None = Field(default=None, min_length=1, max_length=100)
     fecha_nacimiento: date | None = None
+    curso: str | None = Field(default=None, max_length=100)
+    fotografia: str | None = Field(default=None, max_length=500)
     parada_id: int | None = None
 
 

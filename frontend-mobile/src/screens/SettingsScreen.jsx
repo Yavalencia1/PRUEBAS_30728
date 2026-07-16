@@ -141,7 +141,7 @@ export default function SettingsScreen() {
 
         <TouchableOpacity style={styles.actionButton} onPress={handleClearCache}>
           <View style={styles.actionButtonContent}>
-            <Text style={styles.actionButtonTitle}>🗑️ Limpiar Caché</Text>
+            <Text style={styles.actionButtonTitle}>Limpiar Caché</Text>
             <Text style={styles.actionButtonDescription}>
               Libera espacio eliminando archivos temporales
             </Text>

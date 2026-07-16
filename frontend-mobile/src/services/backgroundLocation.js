@@ -42,7 +42,7 @@ let _onUpdate = null;
 
 TaskManager.defineTask(BACKGROUND_LOCATION_TASK, ({ data, error }) => {
   if (error) {
-    console.error('[GPS BG] Error en tarea de fondo:', error.message);
+    console.warn('[GPS BG] Error en tarea de fondo:', error.message);
     return;
   }
 
@@ -191,7 +191,7 @@ async function startBackgroundLocation(onUpdate = null) {
 
     return { success: true, error: null, background: backgroundActivo };
   } catch (err) {
-    console.error('[GPS] Error al iniciar servicio de fondo:', err);
+    console.warn('[GPS] Error al iniciar servicio de fondo:', err.message || err);
     return { success: false, error: err.message || 'Error desconocido al iniciar GPS.' };
   }
 }
@@ -248,7 +248,7 @@ async function stopBackgroundLocation() {
 
     stopForegroundWatcher();
   } catch (err) {
-    console.error('[GPS] Error al detener servicio de fondo:', err);
+    console.warn('[GPS] Error al detener servicio de fondo:', err.message || err);
   }
 }
 

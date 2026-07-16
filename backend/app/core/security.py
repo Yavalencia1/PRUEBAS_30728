@@ -7,7 +7,11 @@ from passlib.context import CryptContext
 
 from app.core.config import settings
 
-pwd_context = CryptContext(schemes=[settings.password_hash_scheme], deprecated="auto")
+pwd_context = CryptContext(
+    schemes=[settings.password_hash_scheme],
+    bcrypt__rounds=12,
+    deprecated="auto",
+)
 
 
 def verificar_contraseña(contraseña_plana: str, contraseña_hash: str) -> bool:

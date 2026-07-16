@@ -112,6 +112,10 @@ export default function ConductorScreen() {
   // ─── Ciclo de vida ────────────────────────────────────────────────────────────
 
   useEffect(() => {
+    if (Platform.OS === 'web') {
+      setLoading(false);
+      return;
+    }
     inicializar();
     return () => {
       // Cleanup: desconectar WS al salir de la pantalla
@@ -122,6 +126,7 @@ export default function ConductorScreen() {
   }, []);
 
   const inicializar = async () => {
+    if (Platform.OS === 'web') return;
     setLoading(true);
     setError(null);
     try {
@@ -496,6 +501,18 @@ export default function ConductorScreen() {
 
   // ─── Render Principal ─────────────────────────────────────────────────────────
 
+  if (Platform.OS === 'web') {
+    return (
+      <View style={s.webContainer}>
+        <Ionicons name="bus-outline" size={48} color="#185FA5" style={{ marginBottom: 12 }} />
+        <Text style={s.webTitle}>Módulo del Conductor</Text>
+        <Text style={s.webSubtitle}>
+          El panel de conducción y transmisión GPS en tiempo real requiere un dispositivo móvil nativo (Android/iOS) con servicios de geolocalización.
+        </Text>
+      </View>
+    );
+  }
+
   return (
     <SafeAreaView style={s.safeArea}>
       <StatusBar barStyle="dark-content" backgroundColor={C.bgDark} />
@@ -507,7 +524,9 @@ export default function ConductorScreen() {
 
         {/* ── Encabezado ── */}
         <View style={s.header}>
-          <Text style={s.headerEmoji}>🚌</Text>
+          <View style={s.headerIconContainer}>
+            <Ionicons name="bus" size={20} color="#185FA5" />
+          </View>
           <View>
             <Text style={s.headerTitle}>Panel del Conductor</Text>
             {usuario && (
@@ -575,12 +594,12 @@ export default function ConductorScreen() {
               <View style={s.statusRow}>
                 <View style={[s.statusBadge, { borderColor: isWsConnected ? C.success + '44' : C.warning + '44' }]}>
                   <Text style={[s.statusText, { color: isWsConnected ? C.success : C.warning }]}>
-                    {isWsConnected ? '🟢 WebSocket OK' : '🟡 Reconectando...'}
+                    {isWsConnected ? 'WebSocket OK' : 'Reconectando...'}
                   </Text>
                 </View>
                 <View style={[s.statusBadge, { borderColor: isGpsActive ? C.success + '44' : C.danger + '44' }]}>
                   <Text style={[s.statusText, { color: isGpsActive ? C.success : C.danger }]}>
-                    {isGpsActive ? '🛰 GPS Activo' : '❌ GPS Inactivo'}
+                    {isGpsActive ? 'GPS Activo' : 'GPS Inactivo'}
                   </Text>
                 </View>
               </View>
@@ -589,10 +608,10 @@ export default function ConductorScreen() {
               {lastCoords && (
                 <View style={s.coordsBox}>
                   <Text style={s.coordsText}>
-                    {`📍 ${lastCoords.lat.toFixed(6)}, ${lastCoords.lng.toFixed(6)}`}
+                    {`Posición: ${lastCoords.lat.toFixed(6)}, ${lastCoords.lng.toFixed(6)}`}
                   </Text>
                   {simMode && (
-                    <Text style={s.simLabel}>⚠ MODO SIMULACION ACTIVO</Text>
+                    <Text style={s.simLabel}>MODO SIMULACION ACTIVO</Text>
                   )}
                 </View>
               )}
@@ -603,7 +622,7 @@ export default function ConductorScreen() {
                 onPress={handleToggleSimulator}
               >
                 <Text style={s.simBtnText}>
-                  {simMode ? '⏹ Detener Simulador' : '▶ Simulador de Viaje (Emulador)'}
+                  {simMode ? 'Detener Simulador' : 'Simulador de Viaje (Emulador)'}
                 </Text>
               </TouchableOpacity>
 
@@ -615,14 +634,16 @@ export default function ConductorScreen() {
               >
                 {actionLoading
                   ? <ActivityIndicator color={C.white} />
-                  : <Text style={s.mainBtnText}>⏹ Terminar Recorrido</Text>
+                  : <Text style={s.mainBtnText}>Terminar Recorrido</Text>
                 }
               </TouchableOpacity>
             </View>
           ) : (
             /* Estado: Sin Ruta Activa */
             <View>
-              <Text style={s.idleEmoji}>🚌</Text>
+              <View style={s.idleIconContainer}>
+                <Ionicons name="bus" size={32} color="#185FA5" />
+              </View>
               <Text style={s.idleTitle}>Iniciar Recorrido del Dia</Text>
               <Text style={s.idleSubtitle}>
                 Selecciona tu ruta asignada para abrir el canal GPS y notificar a los padres de familia.
@@ -630,7 +651,7 @@ export default function ConductorScreen() {
 
               {error && (
                 <View style={s.errorBox}>
-                  <Text style={s.errorText}>⚠ {error}</Text>
+                  <Text style={s.errorText}>{error}</Text>
                 </View>
               )}
 
@@ -684,7 +705,7 @@ export default function ConductorScreen() {
               >
                 {actionLoading
                   ? <ActivityIndicator color={C.white} />
-                  : <Text style={s.mainBtnText}>▶ Comenzar Ruta</Text>
+                  : <Text style={s.mainBtnText}>Comenzar Ruta</Text>
                 }
               </TouchableOpacity>
             </View>
@@ -795,9 +816,16 @@ const s = StyleSheet.create({
 
   // Encabezado
   header: { flexDirection: 'row', alignItems: 'center', gap: 12, marginBottom: 20, paddingTop: Platform.OS === 'android' ? 8 : 0 },
-  headerEmoji: { fontSize: 36 },
-  headerTitle: { fontSize: 22, fontWeight: '700', color: C.textPrimary, letterSpacing: 0.3 },
-  headerSubtitle: { fontSize: 14, color: C.textSecondary, marginTop: 2 },
+  headerIconContainer: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#E6F1FB',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  headerTitle: { fontSize: 20, fontWeight: '700', color: C.textPrimary, letterSpacing: 0.3 },
+  headerSubtitle: { fontSize: 13, color: C.textSecondary, marginTop: 2 },
 
   // Tarjeta de control
   controlCard: { backgroundColor: C.bgCard, borderRadius: 16, padding: 20, marginBottom: 20, borderWidth: 1, borderColor: C.border, elevation: 6 },
@@ -824,15 +852,45 @@ const s = StyleSheet.create({
   simBtnText: { fontSize: 13, color: C.textSecondary, fontWeight: '500' },
 
   // Estado idle (sin ruta)
-  idleEmoji: { fontSize: 52, textAlign: 'center', marginBottom: 12 },
-  idleTitle: { fontSize: 20, fontWeight: '700', color: C.textPrimary, textAlign: 'center', marginBottom: 8 },
-  idleSubtitle: { fontSize: 14, color: C.textSecondary, textAlign: 'center', lineHeight: 20, marginBottom: 20 },
+  idleIconContainer: {
+    alignSelf: 'center',
+    width: 60,
+    height: 60,
+    borderRadius: 30,
+    backgroundColor: '#E6F1FB',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  idleTitle: { fontSize: 18, fontWeight: '700', color: C.textPrimary, textAlign: 'center', marginBottom: 8 },
+  idleSubtitle: { fontSize: 12, color: C.textSecondary, textAlign: 'center', lineHeight: 18, marginBottom: 20 },
 
   // Mensajes de error/warning
   errorBox: { backgroundColor: C.danger + '20', borderWidth: 1, borderColor: C.danger + '50', borderRadius: 8, padding: 12, marginBottom: 14 },
-  errorText: { color: C.danger, fontSize: 14, fontWeight: '500' },
+  errorText: { color: C.danger, fontSize: 13, fontWeight: '500' },
   warningBox: { backgroundColor: C.warning + '20', borderWidth: 1, borderColor: C.warning + '50', borderRadius: 8, padding: 14, marginBottom: 14 },
-  warningText: { color: C.warning, fontSize: 14, lineHeight: 20 },
+  warningText: { color: C.warning, fontSize: 13, lineHeight: 18 },
+
+  // Web Fallback
+  webContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 24,
+    backgroundColor: '#ffffff',
+  },
+  webTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#2C2C2A',
+    marginBottom: 8,
+  },
+  webSubtitle: {
+    fontSize: 11,
+    color: '#888780',
+    textAlign: 'center',
+    lineHeight: 16,
+  },
 
   // Selector de rutas (chips horizontales)
   rutaSelectorContainer: { marginBottom: 16 },

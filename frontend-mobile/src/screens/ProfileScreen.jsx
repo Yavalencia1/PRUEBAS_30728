@@ -7,7 +7,10 @@ import {
   TouchableOpacity,
   Alert,
   ActivityIndicator,
+  Platform,
+  Image,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 
 export default function ProfileScreen() {
@@ -15,7 +18,7 @@ export default function ProfileScreen() {
 
   const handleLogout = () => {
     Alert.alert('Cerrar Sesión', '¿Deseas cerrar tu sesión?', [
-      { text: 'Cancelar' },
+      { text: 'Cancelar', style: 'cancel' },
       { text: 'Cerrar', onPress: logout, style: 'destructive' },
     ]);
   };
@@ -30,80 +33,105 @@ export default function ProfileScreen() {
 
   if (!usuario) {
     return (
-      <View style={styles.container}>
+      <View style={styles.centerContainer}>
         <ActivityIndicator size="large" color="#6366f1" />
       </View>
     );
   }
 
   return (
-    <ScrollView style={styles.container}>
-      {/* Header con avatar */}
-      <View style={styles.header}>
-        <View style={[styles.avatar, { backgroundColor: getRolColor(usuario?.rol) }]}>
-          <Text style={styles.avatarText}>{getInitials(usuario?.nombre)}</Text>
+    <ScrollView style={styles.container} contentContainerStyle={styles.contentContainer}>
+      {/* Header con avatar premium */}
+      <View style={styles.headerCard}>
+        {usuario?.fotografia ? (
+          <Image source={{ uri: usuario.fotografia }} style={styles.avatarImage} />
+        ) : (
+          <View style={[styles.avatar, { backgroundColor: getRolColor(usuario?.rol) }]}>
+            <Text style={styles.avatarText}>{getInitials(usuario?.nombre)}</Text>
+          </View>
+        )}
+        <Text style={styles.userName}>{usuario?.nombre} {usuario?.apellido || ''}</Text>
+        <View style={[styles.roleBadge, { backgroundColor: getRolColorLight(usuario?.rol) }]}>
+          <Ionicons name={getRolIcon(usuario?.rol)} size={14} color={getRolColor(usuario?.rol)} style={styles.roleIcon} />
+          <Text style={[styles.userRole, { color: getRolColor(usuario?.rol) }]}>
+            {getRolLabel(usuario?.rol)}
+          </Text>
         </View>
-        <Text style={styles.userName}>{usuario?.nombre}</Text>
-        <Text style={styles.userRole}>{getRolLabel(usuario?.rol)}</Text>
       </View>
 
       {/* Información Personal */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Información Personal</Text>
-
-        <InfoRow label="Nombre"             value={usuario?.nombre} />
-        <InfoRow label="Correo Electrónico" value={usuario?.email} />
-        {usuario?.apellido  && <InfoRow label="Apellido" value={usuario.apellido} />}
-        {usuario?.telefono  && <InfoRow label="Teléfono" value={usuario.telefono} />}
-        <InfoRow label="Rol"  value={getRolLabel(usuario?.rol)} />
+        <InfoCard label="Nombre" value={usuario?.nombre} iconName="person-outline" />
+        {usuario?.apellido && <InfoCard label="Apellido" value={usuario.apellido} iconName="person-outline" />}
+        <InfoCard label="Correo Electrónico" value={usuario?.email} iconName="mail-outline" />
+        {usuario?.telefono && <InfoCard label="Teléfono" value={usuario.telefono} iconName="call-outline" />}
+        <InfoCard label="Rol en el Sistema" value={getRolLabel(usuario?.rol)} iconName="shield-checkmark-outline" />
         {usuario?.id && (
-          <InfoRow
-            label="ID"
+          <InfoCard
+            label="ID de Usuario"
             value={String(usuario.id)}
-            valueStyle={{ fontSize: 11, fontFamily: 'monospace' }}
+            valueStyle={styles.monospaceValue}
+            iconName="finger-print-outline"
           />
         )}
       </View>
+
+      {/* Información del Vehículo (Solo Conductores) */}
+      {usuario?.rol?.toLowerCase() === 'conductor' && (
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Información del Vehículo</Text>
+          <InfoCard label="Número de Placa" value={usuario?.placa || 'No registrada'} iconName="card-outline" />
+          {usuario?.numero_ruta && <InfoCard label="Número de Ruta" value={usuario.numero_ruta} iconName="trail-sign-outline" />}
+          {usuario?.nombre_ruta && <InfoCard label="Nombre de la Ruta" value={usuario.nombre_ruta} iconName="navigate-outline" />}
+        </View>
+      )}
 
       {/* Seguridad */}
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Seguridad</Text>
         <TouchableOpacity style={styles.actionButton} onPress={handleChangePassword}>
-          <Text style={styles.actionButtonIcon}>🔐</Text>
+          <View style={styles.actionIconContainer}>
+            <Ionicons name="lock-closed-outline" size={20} color="#6366f1" />
+          </View>
           <View style={styles.actionButtonContent}>
             <Text style={styles.actionButtonTitle}>Cambiar Contraseña</Text>
-            <Text style={styles.actionButtonSubtitle}>Actualiza tu contraseña de forma segura</Text>
+            <Text style={styles.actionButtonSubtitle}>Actualiza tu contraseña periódicamente</Text>
           </View>
-          <Text style={styles.actionButtonArrow}>›</Text>
+          <Ionicons name="chevron-forward-outline" size={18} color="#a0aec0" />
         </TouchableOpacity>
       </View>
 
       {/* Sobre la App */}
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Sobre la Aplicación</Text>
-        <InfoRow label="Aplicación" value="RouteKids Mobile" />
-        <InfoRow label="Versión"    value="1.0.0" />
+        <Text style={styles.sectionTitle}>Acerca de</Text>
+        <InfoCard label="Aplicación" value="RouteKids Mobile" iconName="apps-outline" />
+        <InfoCard label="Versión" value="1.0.0" iconName="information-circle-outline" />
       </View>
 
       {/* Cerrar Sesión */}
-      <TouchableOpacity style={styles.logoutButton} onPress={handleLogout}>
-        <Text style={styles.logoutButtonText}>Cerrar Sesión</Text>
+      <TouchableOpacity style={styles.logoutButtonSecondary} onPress={handleLogout}>
+        <Ionicons name="log-out-outline" size={18} color="#ef4444" style={{ marginRight: 6 }} />
+        <Text style={styles.logoutButtonTextSecondary}>Cerrar Sesión</Text>
       </TouchableOpacity>
 
-      <View style={{ height: 20 }} />
+      <View style={{ height: 32 }} />
     </ScrollView>
   );
 }
 
-// ─── Sub-componente ────────────────────────────────────────────────────────────
+// ─── Sub-componentes ────────────────────────────────────────────────────────────
 
-function InfoRow({ label, value, valueStyle }) {
+function InfoCard({ label, value, valueStyle, iconName }) {
   return (
     <View style={styles.infoCard}>
-      <View style={styles.infoRow}>
+      <View style={styles.infoCardHeader}>
+        <Ionicons name={iconName} size={16} color="#718096" style={styles.infoCardIcon} />
         <Text style={styles.infoLabel}>{label}</Text>
-        <Text style={[styles.infoValue, valueStyle]}>{value}</Text>
       </View>
+      <Text style={[styles.infoValue, valueStyle]}>
+        {value}
+      </Text>
     </View>
   );
 }
@@ -112,45 +140,210 @@ function InfoRow({ label, value, valueStyle }) {
 
 function getInitials(name) {
   if (!name) return 'U';
-  return name.split(' ').map((n) => n[0]).join('').toUpperCase();
+  return name.split(' ').filter(Boolean).map((n) => n[0]).slice(0, 2).join('').toUpperCase();
 }
 
 function getRolColor(rol) {
-  const colors = { padre: '#6366f1', conductor: '#14b8a6', dueno: '#f97316', admin: '#8b5cf6' };
+  const colors = { padre: '#6366f1', conductor: '#0d9488', dueno: '#ea580c', admin: '#7c3aed' };
   return colors[rol?.toLowerCase()] || '#6366f1';
 }
 
+function getRolColorLight(rol) {
+  const colors = { padre: '#e0e7ff', conductor: '#ccfbf1', dueno: '#ffedd5', admin: '#f3e8ff' };
+  return colors[rol?.toLowerCase()] || '#e0e7ff';
+}
+
+function getRolIcon(rol) {
+  const icons = { padre: 'people-outline', conductor: 'bus-outline', dueno: 'business-outline', admin: 'settings-outline' };
+  return icons[rol?.toLowerCase()] || 'person-outline';
+}
+
 function getRolLabel(rol) {
-  const labels = { padre: '👨‍👩‍👧 Padre/Madre', conductor: '🚌 Conductor', dueno: '🏢 Dueño', admin: '⚙️ Administrador' };
+  const labels = { padre: 'Padre / Madre', conductor: 'Conductor', dueno: 'Dueño de Transporte', admin: 'Administrador' };
   return labels[rol?.toLowerCase()] || rol;
 }
 
-// ─── Estilos ──────────────────────────────────────────────────────────────────
+// ─── Estilos Premium y Responsivos ────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  container:            { flex: 1, backgroundColor: '#f8f9fa' },
-
-  header:               { backgroundColor: '#ffffff', borderBottomWidth: 1, borderBottomColor: '#e2e8f0', paddingVertical: 32, alignItems: 'center' },
-  avatar:               { width: 80, height: 80, borderRadius: 40, justifyContent: 'center', alignItems: 'center', marginBottom: 16 },
-  avatarText:           { color: '#ffffff', fontSize: 32, fontWeight: 'bold' },
-  userName:             { fontSize: 22, fontWeight: 'bold', color: '#1a202c', marginBottom: 4 },
-  userRole:             { fontSize: 14, color: '#6366f1', fontWeight: '600' },
-
-  section:              { paddingHorizontal: 16, paddingVertical: 16 },
-  sectionTitle:         { fontSize: 16, fontWeight: '600', color: '#1a202c', marginBottom: 12 },
-
-  infoCard:             { backgroundColor: '#ffffff', borderRadius: 8, paddingVertical: 12, paddingHorizontal: 16, marginBottom: 8, borderBottomWidth: 1, borderBottomColor: '#e2e8f0' },
-  infoRow:              { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  infoLabel:            { fontSize: 14, color: '#718096' },
-  infoValue:            { fontSize: 14, color: '#1a202c', fontWeight: '600', flex: 1, textAlign: 'right' },
-
-  actionButton:         { backgroundColor: '#ffffff', borderRadius: 8, paddingVertical: 12, paddingHorizontal: 16, marginBottom: 8, flexDirection: 'row', alignItems: 'center', borderBottomWidth: 1, borderBottomColor: '#e2e8f0' },
-  actionButtonIcon:     { fontSize: 20, marginRight: 12 },
-  actionButtonContent:  { flex: 1 },
-  actionButtonTitle:    { fontSize: 14, fontWeight: '600', color: '#1a202c', marginBottom: 2 },
-  actionButtonSubtitle: { fontSize: 12, color: '#718096' },
-  actionButtonArrow:    { fontSize: 18, color: '#cbd5e0' },
-
-  logoutButton:         { marginHorizontal: 16, marginTop: 24, marginBottom: 16, backgroundColor: '#ef4444', paddingVertical: 12, borderRadius: 8, alignItems: 'center' },
-  logoutButtonText:     { color: '#ffffff', fontWeight: '600', fontSize: 16 },
+  container: {
+    flex: 1,
+    backgroundColor: '#f8f9fa',
+  },
+  contentContainer: {
+    paddingHorizontal: 16,
+    paddingTop: 16,
+  },
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+  },
+  headerCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 16,
+    paddingVertical: 24,
+    paddingHorizontal: 16,
+    alignItems: 'center',
+    marginBottom: 20,
+    shadowColor: '#1a202c',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 8,
+    elevation: 2,
+    borderWidth: 1,
+    borderColor: '#edf2f7',
+  },
+  avatarImage: {
+    width: 74,
+    height: 74,
+    borderRadius: 37,
+    marginBottom: 12,
+    backgroundColor: '#F4F8FD',
+    borderWidth: 0.5,
+    borderColor: '#E6F1FB',
+  },
+  avatar: {
+    width: 74,
+    height: 74,
+    borderRadius: 37,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginBottom: 12,
+  },
+  avatarText: {
+    color: '#ffffff',
+    fontSize: 26,
+    fontWeight: '700',
+  },
+  userName: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#1a202c',
+    marginBottom: 8,
+    textAlign: 'center',
+  },
+  roleBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 4,
+    paddingHorizontal: 12,
+    borderRadius: 20,
+  },
+  roleIcon: {
+    marginRight: 6,
+  },
+  userRole: {
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  section: {
+    marginBottom: 20,
+  },
+  sectionTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#718096',
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    paddingLeft: 4,
+  },
+  infoCard: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    marginBottom: 10,
+    borderWidth: 1,
+    borderColor: '#edf2f7',
+    shadowColor: '#1a202c',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 6,
+    elevation: 1,
+  },
+  infoCardHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 6,
+  },
+  infoCardIcon: {
+    marginRight: 8,
+  },
+  infoLabel: {
+    fontSize: 12,
+    color: '#718096',
+    fontWeight: '500',
+  },
+  infoValue: {
+    fontSize: 15,
+    color: '#1a202c',
+    fontWeight: '600',
+    paddingLeft: 24,
+  },
+  monospaceValue: {
+    fontSize: 12,
+    fontFamily: Platform.OS === 'ios' ? 'Courier' : 'monospace',
+    color: '#718096',
+  },
+  actionButton: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    borderWidth: 1,
+    borderColor: '#edf2f7',
+    paddingVertical: 14,
+    paddingHorizontal: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    shadowColor: '#1a202c',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.04,
+    shadowRadius: 6,
+    elevation: 1,
+  },
+  actionIconContainer: {
+    width: 36,
+    height: 36,
+    borderRadius: 8,
+    backgroundColor: '#e0e7ff',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  actionButtonContent: {
+    flex: 1,
+  },
+  actionButtonTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#1a202c',
+    marginBottom: 2,
+  },
+  actionButtonSubtitle: {
+    fontSize: 12,
+    color: '#718096',
+  },
+  logoutButtonSecondary: {
+    flexDirection: 'row',
+    borderWidth: 1,
+    borderColor: '#fca5a5',
+    backgroundColor: '#fff5f5',
+    paddingVertical: 12,
+    borderRadius: 12,
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: 8,
+    shadowColor: '#ef4444',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 4,
+    elevation: 1,
+  },
+  logoutButtonTextSecondary: {
+    color: '#ef4444',
+    fontWeight: '700',
+    fontSize: 14,
+  },
 });

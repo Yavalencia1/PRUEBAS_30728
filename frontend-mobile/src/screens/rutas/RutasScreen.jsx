@@ -7,10 +7,13 @@ import {
   TouchableOpacity,
   ActivityIndicator,
   Alert,
-  Modal,
   TextInput,
   RefreshControl,
+  SafeAreaView,
+  ScrollView,
+  Modal,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../../context/AuthContext';
 import { useNavigation } from '@react-navigation/native';
 import { api } from '../../services/api';
@@ -26,26 +29,29 @@ function SimpleSelector({ label, options, selectedValue, onValueChange, disabled
         style={[selectorStyles.trigger, disabled && selectorStyles.disabled]}
         onPress={() => !disabled && setOpen(true)}
       >
-        <Text style={selectorStyles.triggerText}>
+        <Text style={selectorStyles.triggerText} numberOfLines={1}>
           {selected ? selected.label : 'Seleccionar…'}
         </Text>
-        <Text style={selectorStyles.arrow}>▾</Text>
+        <Ionicons name="chevron-down" size={16} color="#185FA5" />
       </TouchableOpacity>
-      <Modal visible={open} transparent animationType="fade" onRequestClose={() => setOpen(false)}>
+      <Modal visible={open} transparent animationType="slide" onRequestClose={() => setOpen(false)}>
         <TouchableOpacity style={selectorStyles.overlay} onPress={() => setOpen(false)} activeOpacity={1}>
           <View style={selectorStyles.sheet}>
             <Text style={selectorStyles.sheetTitle}>{label}</Text>
-            {options.map(opt => (
-              <TouchableOpacity
-                key={opt.value}
-                style={[selectorStyles.option, opt.value === selectedValue && selectorStyles.optionSelected]}
-                onPress={() => { onValueChange(opt.value); setOpen(false); }}
-              >
-                <Text style={[selectorStyles.optionText, opt.value === selectedValue && selectorStyles.optionTextSelected]}>
-                  {opt.label}
-                </Text>
-              </TouchableOpacity>
-            ))}
+            <ScrollView>
+              {options.map(opt => (
+                <TouchableOpacity
+                  key={opt.value}
+                  style={[selectorStyles.option, opt.value === selectedValue && selectorStyles.optionSelected]}
+                  onPress={() => { onValueChange(opt.value); setOpen(false); }}
+                >
+                  <Text style={[selectorStyles.optionText, opt.value === selectedValue && selectorStyles.optionTextSelected]}>
+                    {opt.label}
+                  </Text>
+                  {opt.value === selectedValue && <Ionicons name="checkmark" size={18} color="#6366f1" />}
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
           </View>
         </TouchableOpacity>
       </Modal>
@@ -62,27 +68,28 @@ export default function RutasScreen({ recorridoId }) {
   const canCreate = rol === 'admin' || rol === 'dueno';
   const canEdit = rol === 'admin' || rol === 'dueno';
 
+  const [view, setView] = useState('list'); // 'list' | 'register' | 'edit'
   const [rutas, setRutas] = useState([]);
   const [recorridos, setRecorridos] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState(null);
 
-  const [modalVisible, setModalVisible] = useState(false);
-  const [newRuta, setNewRuta] = useState({
+  // Formulario creación
+  const emptyForm = {
     nombre: '',
     descripcion: '',
     recorrido_id: '',
     tipo: 'ida',
-  });
+  };
+  const [formData, setFormData] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
 
-  // Filtro manual (solo cuando no está acotado por drill-down)
+  // Filtro manual
   const [filterRecorridoId, setFilterRecorridoId] = useState('');
 
-  // Modal de edición
-  const [editModalVisible, setEditModalVisible] = useState(false);
-  const [editRuta, setEditRuta] = useState(null);
+  // Formulario edición
+  const [editRutaId, setEditRutaId] = useState(null);
   const [editForm, setEditForm] = useState({ nombre: '', descripcion: '', tipo: 'ida' });
   const [savingEdit, setSavingEdit] = useState(false);
 
@@ -90,31 +97,32 @@ export default function RutasScreen({ recorridoId }) {
     loadData();
   }, []);
 
-  // Al navegar desde otra tab con un recorrido preseleccionado, aplicamos el filtro.
   useEffect(() => {
     if (recorridoId) {
       applyRecorridoFilter(String(recorridoId));
     }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [recorridoId]);
 
   const loadData = async () => {
     try {
       setLoading(true);
       setError(null);
-      // El backend filtra según JWT; no hay filtro adicional en el frontend.
-      // Cargamos siempre todas las rutas y los recorridos (para las opciones del filtro).
       const [rutasResult, recorridosResult] = await Promise.all([
         api.rutas.list(),
         api.recorridos.list(),
       ]);
 
-      setRutas(
-        rutasResult.ok && Array.isArray(rutasResult.data) ? rutasResult.data : []
-      );
-      setRecorridos(
-        recorridosResult.ok && Array.isArray(recorridosResult.data) ? recorridosResult.data : []
-      );
+      const dataRutas = rutasResult.ok && Array.isArray(rutasResult.data) ? rutasResult.data : [];
+      setRutas(dataRutas);
+
+      const activeRecorridos = recorridosResult.ok && Array.isArray(recorridosResult.data)
+        ? recorridosResult.data.filter(r => r.activo)
+        : [];
+      setRecorridos(activeRecorridos);
+
+      if (activeRecorridos.length > 0) {
+        setFormData(prev => ({ ...prev, recorrido_id: activeRecorridos[0].id.toString() }));
+      }
 
       if (!rutasResult.ok) {
         setError(rutasResult.mensaje || 'No se pudieron cargar las rutas');
@@ -133,24 +141,37 @@ export default function RutasScreen({ recorridoId }) {
     setRefreshing(false);
   };
 
+  const applyRecorridoFilter = async (idVal) => {
+    setFilterRecorridoId(idVal);
+    try {
+      setLoading(true);
+      const result = idVal ? await api.rutas.list(parseInt(idVal)) : await api.rutas.list();
+      setRutas(result.ok && Array.isArray(result.data) ? result.data : []);
+    } catch {
+      setError('Error al filtrar rutas');
+    } finally {
+      setLoading(false);
+    }
+  };
+
   const handleCreate = async () => {
-    if (!newRuta.nombre.trim() || !newRuta.recorrido_id) {
+    if (!formData.nombre.trim() || !formData.recorrido_id) {
       Alert.alert('Error', 'Nombre y recorrido son requeridos');
       return;
     }
 
     try {
       setSaving(true);
-      // api.rutas.create(recorridoId, nombre, descripcion, tipo)
       const result = await api.rutas.create(
-        parseInt(newRuta.recorrido_id),
-        newRuta.nombre.trim(),
-        newRuta.descripcion.trim(),
-        newRuta.tipo
+        parseInt(formData.recorrido_id),
+        formData.nombre.trim(),
+        formData.descripcion.trim(),
+        formData.tipo
       );
 
       if (result.ok) {
-        closeModal();
+        setView('list');
+        setFormData(prev => ({ ...prev, nombre: '', descripcion: '' }));
         loadData();
         Alert.alert('✅ Éxito', 'Ruta creada correctamente');
       } else {
@@ -190,19 +211,14 @@ export default function RutasScreen({ recorridoId }) {
     );
   };
 
-  const closeModal = () => {
-    setModalVisible(false);
-    setNewRuta({ nombre: '', descripcion: '', recorrido_id: '', tipo: 'ida' });
-  };
-
   const handleEditOpen = (ruta) => {
-    setEditRuta(ruta);
+    setEditRutaId(ruta.id);
     setEditForm({
       nombre: ruta.nombre || '',
       descripcion: ruta.descripcion || '',
       tipo: ruta.tipo || 'ida',
     });
-    setEditModalVisible(true);
+    setView('edit');
   };
 
   const handleEditSave = async () => {
@@ -213,14 +229,14 @@ export default function RutasScreen({ recorridoId }) {
     try {
       setSavingEdit(true);
       const result = await api.rutas.update(
-        editRuta.id,
+        editRutaId,
         editForm.nombre.trim(),
         editForm.descripcion.trim(),
         editForm.tipo
       );
       if (result.ok) {
-        setEditModalVisible(false);
-        setEditRuta(null);
+        setView('list');
+        setEditRutaId(null);
         loadData();
         Alert.alert('✅ Éxito', 'Ruta actualizada correctamente');
       } else {
@@ -233,321 +249,434 @@ export default function RutasScreen({ recorridoId }) {
     }
   };
 
-  // Opciones para el selector de recorridos
   const recorridoOptions = recorridos.map(r => ({
-    value: r.id?.toString(),
+    value: r.id.toString(),
     label: r.nombre,
   }));
-
-  const tipoOptions = [
-    { value: 'ida', label: '↓ Ida' },
-    { value: 'vuelta', label: '↑ Vuelta' },
-  ];
 
   const recorridoFilterOptions = [
     { value: '', label: 'Todos los recorridos' },
     ...recorridoOptions,
   ];
 
-  const applyRecorridoFilter = async (value) => {
-    setFilterRecorridoId(value);
-    try {
-      setLoading(true);
-      const result = await api.rutas.list(value || null);
-      setRutas(result.ok && Array.isArray(result.data) ? result.data : []);
-    } catch (err) {
-      console.error('[RutasScreen] Error filtro:', err);
-    } finally {
-      setLoading(false);
-    }
-  };
+  const tipoOptions = [
+    { value: 'ida', label: 'Ida' },
+    { value: 'vuelta', label: 'Vuelta' },
+  ];
 
-  if (loading && !rutas.length) {
+  // ─── Render de Ruta ─────────────────────────────────────────────────────────
+
+  const renderRuta = ({ item }) => (
+    <View style={styles.card}>
+      <View style={styles.cardLeft}>
+        <View style={styles.iconContainer}>
+          <Ionicons name="trail-sign-outline" size={18} color="#185FA5" />
+        </View>
+        <View style={styles.cardInfoCol}>
+          <Text style={styles.cardTitle} numberOfLines={1}>{item.nombre}</Text>
+          {item.descripcion ? (
+            <Text style={styles.cardDescription} numberOfLines={2}>{item.descripcion}</Text>
+          ) : null}
+          <View style={styles.badgeRow}>
+            <View style={[styles.typeBadge, item.tipo === 'ida' ? styles.badgeIda : styles.badgeVuelta]}>
+              <Ionicons
+                name={item.tipo === 'ida' ? 'arrow-down' : 'arrow-up'}
+                size={8}
+                color={item.tipo === 'ida' ? '#0F6E56' : '#0C447C'}
+                style={{ marginRight: 2 }}
+              />
+              <Text style={[styles.typeBadgeText, item.tipo === 'ida' ? styles.textIda : styles.textVuelta]}>
+                {item.tipo.toUpperCase()}
+              </Text>
+            </View>
+            {item.recorrido_nombre && (
+              <View style={styles.recorridoBadge}>
+                <Ionicons name="bus-outline" size={9} color="#888780" style={{ marginRight: 2 }} />
+                <Text style={styles.recorridoBadgeText} numberOfLines={1}>{item.recorrido_nombre}</Text>
+              </View>
+            )}
+          </View>
+        </View>
+      </View>
+      <View style={styles.cardRight}>
+        <TouchableOpacity
+          activeOpacity={0.8}
+          onPress={() =>
+            navigation.navigate('ParadasTab', {
+              rutaId: item.id,
+              recorridoId: item.recorrido_id,
+            })
+          }
+          style={styles.openDetailsBtn}
+        >
+          <Ionicons name="chevron-forward" size={14} color="#185FA5" />
+        </TouchableOpacity>
+        <View style={styles.actionsContainer}>
+          {canEdit && (
+            <TouchableOpacity style={styles.editBtn} onPress={() => handleEditOpen(item)}>
+              <Ionicons name="pencil-outline" size={12} color="#185FA5" />
+            </TouchableOpacity>
+          )}
+          {canDelete && (
+            <TouchableOpacity style={styles.deleteBtn} onPress={() => handleDelete(item)}>
+              <Ionicons name="trash-outline" size={12} color="#A32D2D" />
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+    </View>
+  );
+
+  if (loading && rutas.length === 0) {
     return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" color="#6366f1" />
+      <View style={styles.loadingContainer}>
+        <ActivityIndicator size="large" color="#185FA5" />
+        <Text style={styles.loadingText}>Cargando rutas…</Text>
       </View>
     );
   }
 
   return (
-    <View style={styles.container}>
-      {error && (
-        <View style={styles.errorContainer}>
-          <Text style={styles.errorText}>{error}</Text>
-        </View>
-      )}
-
-      {canCreate && (
-        <TouchableOpacity
-          style={styles.createButton}
-          onPress={() => {
-            if (!recorridoId && recorridos.length === 0) {
-              Alert.alert('Sin recorridos', 'Debes tener al menos un recorrido para crear rutas.');
-              return;
-            }
-            // Pre-seleccionar el recorrido (el filtro activo si aplica)
-            if (!newRuta.recorrido_id) {
-              const preselect = (filterRecorridoId || recorridos[0]?.id)?.toString();
-              setNewRuta(prev => ({ ...prev, recorrido_id: preselect }));
-            }
-            setModalVisible(true);
-          }}
-        >
-          <Text style={styles.createButtonText}>+ Nueva Ruta</Text>
-        </TouchableOpacity>
-      )}
-
-      <View style={styles.filterContainer}>
-        <SimpleSelector
-          label="Filtrar por recorrido"
-          options={recorridoFilterOptions}
-          selectedValue={filterRecorridoId}
-          onValueChange={applyRecorridoFilter}
-        />
+    <SafeAreaView style={styles.container}>
+      {/* Barra de Migas de Pan (Breadcrumbs) */}
+      <View style={styles.breadcrumbContainer}>
+        <Ionicons name="settings-outline" size={12} color="#888780" />
+        <Text style={styles.breadcrumbLink} onPress={() => setView('list')}> Gestión</Text>
+        <Text style={styles.breadcrumbSeparator}> &gt; </Text>
+        <Text style={[styles.breadcrumbLink, view === 'list' && styles.breadcrumbActive]} onPress={() => setView('list')}>Rutas</Text>
+        {view === 'register' && (
+          <>
+            <Text style={styles.breadcrumbSeparator}> &gt; </Text>
+            <Text style={[styles.breadcrumbLink, styles.breadcrumbActive]}>Registrar</Text>
+          </>
+        )}
+        {view === 'edit' && (
+          <>
+            <Text style={styles.breadcrumbSeparator}> &gt; </Text>
+            <Text style={[styles.breadcrumbLink, styles.breadcrumbActive]}>Editar</Text>
+          </>
+        )}
       </View>
 
-      {rutas.length === 0 ? (
-        <View style={styles.emptyContainer}>
-          <Text style={styles.emptyIcon}>🛣️</Text>
-          <Text style={styles.emptyText}>No hay rutas</Text>
-        </View>
-      ) : (
-        <FlatList
-          data={rutas}
-          keyExtractor={(item) => item.id?.toString()}
-          renderItem={({ item }) => (
-            <TouchableOpacity
-              activeOpacity={0.8}
-              onPress={() =>
-                navigation.navigate('ParadasTab', {
-                  rutaId: item.id,
-                  recorridoId: item.recorrido_id ?? item.recorrido?.id,
-                })
-              }
-            >
-              <RutaCard ruta={item} canEdit={canEdit} onEdit={handleEditOpen} canDelete={canDelete} onDelete={handleDelete} />
-            </TouchableOpacity>
-          )}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
-          contentContainerStyle={styles.listContent}
-        />
-      )}
-
-      {/* Modal de creación */}
-      <Modal visible={modalVisible} animationType="slide" transparent onRequestClose={closeModal}>
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Nueva Ruta</Text>
-
-            <TextInput
-              style={styles.input}
-              placeholder="Nombre *"
-              placeholderTextColor="#a0aec0"
-              value={newRuta.nombre}
-              onChangeText={(text) => setNewRuta({ ...newRuta, nombre: text })}
-              editable={!saving}
-            />
-
-            <TextInput
-              style={[styles.input, { height: 80 }]}
-              placeholder="Descripción (opcional)"
-              placeholderTextColor="#a0aec0"
-              value={newRuta.descripcion}
-              onChangeText={(text) => setNewRuta({ ...newRuta, descripcion: text })}
-              multiline
-              editable={!saving}
-            />
-
-            <SimpleSelector
-              label="Recorrido *"
-              options={recorridoOptions}
-              selectedValue={newRuta.recorrido_id}
-              onValueChange={(val) => setNewRuta({ ...newRuta, recorrido_id: val })}
-              disabled={saving}
-            />
-
-            <SimpleSelector
-              label="Tipo *"
-              options={tipoOptions}
-              selectedValue={newRuta.tipo}
-              onValueChange={(val) => setNewRuta({ ...newRuta, tipo: val })}
-              disabled={saving}
-            />
-
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.button, styles.buttonCancel]}
-                onPress={closeModal}
-                disabled={saving}
-              >
-                <Text style={styles.buttonCancelText}>Cancelar</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.button, styles.buttonCreate, saving && styles.buttonDisabled]}
-                onPress={handleCreate}
-                disabled={saving}
-              >
-                {saving
-                  ? <ActivityIndicator color="#ffffff" size="small" />
-                  : <Text style={styles.buttonText}>Crear</Text>
-                }
-              </TouchableOpacity>
+      {view === 'list' ? (
+        // ─── VISTA LISTADO ─────────────────────────────────────────────────────
+        <View style={{ flex: 1 }}>
+          <View style={styles.header}>
+            <View style={styles.headerTextContainer}>
+              <Text style={styles.title}>Rutas del Sistema</Text>
+              <Text style={styles.subtitle}>Listado de trayectos de ida y vuelta</Text>
             </View>
+            {canCreate && (
+              <TouchableOpacity
+                style={styles.btnAdd}
+                onPress={() => {
+                  if (recorridos.length === 0) {
+                    Alert.alert('Aviso', 'Necesitas tener recorridos registrados para crear rutas.');
+                    return;
+                  }
+                  setView('register');
+                }}
+              >
+                <Ionicons name="add" size={20} color="#ffffff" />
+              </TouchableOpacity>
+            )}
           </View>
+
+          {/* Filtro por recorrido */}
+          <View style={styles.filterContainer}>
+            <SimpleSelector
+              label="Filtrar por recorrido"
+              options={recorridoFilterOptions}
+              selectedValue={filterRecorridoId}
+              onValueChange={applyRecorridoFilter}
+            />
+          </View>
+
+          {error && (
+            <View style={styles.errorContainer}>
+              <Text style={styles.errorText}>{error}</Text>
+            </View>
+          )}
+
+          {rutas.length === 0 ? (
+            <View style={styles.emptyContainer}>
+              <Ionicons name="navigate-outline" size={32} color="#B4B2A9" style={{ marginBottom: 6 }} />
+              <Text style={styles.emptyText}>No hay rutas registradas con este criterio.</Text>
+            </View>
+          ) : (
+            <FlatList
+              data={rutas}
+              keyExtractor={(item) => item.id.toString()}
+              renderItem={renderRuta}
+              contentContainerStyle={styles.listContent}
+              refreshControl={<RefreshControl refreshing={refreshing} onRefresh={onRefresh} />}
+            />
+          )}
         </View>
-      </Modal>
+      ) : view === 'register' ? (
+        // ─── VISTA REGISTRO (Estilo Migajas) ───────────────────────────────────
+        <ScrollView style={styles.formContainer} keyboardShouldPersistTaps="handled">
+          <Text style={styles.formTitle}>Registrar Nueva Ruta</Text>
+          <Text style={styles.formSubtitle}>Configura el trayecto para los estudiantes.</Text>
 
-      {/* Modal de edición */}
-      <Modal visible={editModalVisible} animationType="slide" transparent onRequestClose={() => setEditModalVisible(false)}>
-        <View style={styles.modalContainer}>
-          <View style={styles.modalContent}>
-            <Text style={styles.modalTitle}>Editar Ruta</Text>
-
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Nombre de la Ruta *</Text>
             <TextInput
               style={styles.input}
-              placeholder="Nombre *"
-              placeholderTextColor="#a0aec0"
-              value={editForm.nombre}
-              onChangeText={(text) => setEditForm({ ...editForm, nombre: text })}
-              editable={!savingEdit}
+              placeholder="Ej. Ruta Norte - Ida"
+              placeholderTextColor="#9ca3af"
+              value={formData.nombre}
+              onChangeText={(val) => setFormData({ ...formData, nombre: val })}
+              editable={!saving}
             />
+          </View>
 
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Descripción</Text>
             <TextInput
               style={[styles.input, { height: 80 }]}
-              placeholder="Descripción (opcional)"
-              placeholderTextColor="#a0aec0"
+              placeholder="Descripción opcional"
+              placeholderTextColor="#9ca3af"
+              value={formData.descripcion}
+              onChangeText={(val) => setFormData({ ...formData, descripcion: val })}
+              multiline
+              editable={!saving}
+            />
+          </View>
+
+          <View style={styles.formGroup}>
+            <SimpleSelector
+              label="Recorrido Relacionado *"
+              options={recorridoOptions}
+              selectedValue={formData.recorrido_id}
+              onValueChange={(val) => setFormData({ ...formData, recorrido_id: val })}
+              disabled={saving}
+            />
+          </View>
+
+          <View style={styles.formGroup}>
+            <SimpleSelector
+              label="Tipo de Trayecto *"
+              options={tipoOptions}
+              selectedValue={formData.tipo}
+              onValueChange={(val) => setFormData({ ...formData, tipo: val })}
+              disabled={saving}
+            />
+          </View>
+
+          <View style={styles.formButtons}>
+            <TouchableOpacity
+              style={styles.btnSecondary}
+              onPress={() => {
+                setView('list');
+                setFormData(emptyForm);
+              }}
+              disabled={saving}
+            >
+              <Text style={styles.btnSecondaryText}>Cancelar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.btnPrimary, saving && styles.btnDisabled]}
+              onPress={handleCreate}
+              disabled={saving}
+            >
+              {saving ? (
+                <ActivityIndicator color="white" />
+              ) : (
+                <Text style={styles.btnPrimaryText}>Crear Ruta</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      ) : (
+        // ─── VISTA EDICIÓN (Estilo Migajas) ─────────────────────────────────────
+        <ScrollView style={styles.formContainer} keyboardShouldPersistTaps="handled">
+          <Text style={styles.formTitle}>Editar Ruta</Text>
+          <Text style={styles.formSubtitle}>Modifica los datos de la ruta y tipo de trayecto.</Text>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Nombre de la Ruta *</Text>
+            <TextInput
+              style={styles.input}
+              placeholder="Ej. Ruta Norte - Ida"
+              placeholderTextColor="#9ca3af"
+              value={editForm.nombre}
+              onChangeText={(val) => setEditForm({ ...editForm, nombre: val })}
+              editable={!savingEdit}
+            />
+          </View>
+
+          <View style={styles.formGroup}>
+            <Text style={styles.label}>Descripción</Text>
+            <TextInput
+              style={[styles.input, { height: 80 }]}
+              placeholder="Descripción de la ruta"
+              placeholderTextColor="#9ca3af"
               value={editForm.descripcion}
-              onChangeText={(text) => setEditForm({ ...editForm, descripcion: text })}
+              onChangeText={(val) => setEditForm({ ...editForm, descripcion: val })}
               multiline
               editable={!savingEdit}
             />
+          </View>
 
+          <View style={styles.formGroup}>
             <SimpleSelector
-              label="Tipo *"
+              label="Tipo de Trayecto *"
               options={tipoOptions}
               selectedValue={editForm.tipo}
               onValueChange={(val) => setEditForm({ ...editForm, tipo: val })}
               disabled={savingEdit}
             />
-
-            <View style={styles.modalButtons}>
-              <TouchableOpacity
-                style={[styles.button, styles.buttonCancel]}
-                onPress={() => setEditModalVisible(false)}
-                disabled={savingEdit}
-              >
-                <Text style={styles.buttonCancelText}>Cancelar</Text>
-              </TouchableOpacity>
-
-              <TouchableOpacity
-                style={[styles.button, styles.buttonCreate, savingEdit && styles.buttonDisabled]}
-                onPress={handleEditSave}
-                disabled={savingEdit}
-              >
-                {savingEdit
-                  ? <ActivityIndicator color="#ffffff" size="small" />
-                  : <Text style={styles.buttonText}>Guardar</Text>
-                }
-              </TouchableOpacity>
-            </View>
           </View>
-        </View>
-      </Modal>
-    </View>
+
+          <View style={styles.formButtons}>
+            <TouchableOpacity
+              style={styles.btnSecondary}
+              onPress={() => {
+                setView('list');
+                setEditRutaId(null);
+              }}
+              disabled={savingEdit}
+            >
+              <Text style={styles.btnSecondaryText}>Cancelar</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={[styles.btnPrimary, savingEdit && styles.btnDisabled]}
+              onPress={handleEditSave}
+              disabled={savingEdit}
+            >
+              {savingEdit ? (
+                <ActivityIndicator color="white" />
+              ) : (
+                <Text style={styles.btnPrimaryText}>Guardar Cambios</Text>
+              )}
+            </TouchableOpacity>
+          </View>
+        </ScrollView>
+      )}
+    </SafeAreaView>
   );
 }
 
-function RutaCard({ ruta, canEdit, onEdit, canDelete, onDelete }) {
-  return (
-    <View style={styles.card}>
-      <View style={styles.cardContent}>
-        <Text style={styles.cardTitle}>{ruta.nombre}</Text>
-        {ruta.descripcion ? (
-          <Text style={styles.cardDescription}>{ruta.descripcion}</Text>
-        ) : null}
-        <View style={styles.cardMeta}>
-          {ruta.tipo && (
-            <Text style={styles.cardMetaItem}>
-              {ruta.tipo === 'ida' ? '↓' : '↑'} {ruta.tipo.toUpperCase()}
-            </Text>
-          )}
-          {ruta.recorrido?.nombre && (
-            <Text style={styles.cardMetaItem}>🚌 {ruta.recorrido.nombre}</Text>
-          )}
-        </View>
-      </View>
-
-      <View style={styles.cardActions}>
-        {canEdit && (
-          <TouchableOpacity
-            style={styles.editButton}
-            onPress={() => onEdit(ruta)}
-          >
-            <Text style={styles.editIcon}>✏️</Text>
-          </TouchableOpacity>
-        )}
-        {canDelete && (
-          <TouchableOpacity
-            style={styles.deleteButton}
-            onPress={() => onDelete(ruta)}
-          >
-            <Text style={styles.deleteIcon}>🗑️</Text>
-          </TouchableOpacity>
-        )}
-      </View>
-    </View>
-  );
-}
+// ─── Estilos ──────────────────────────────────────────────────────────────────
 
 const styles = StyleSheet.create({
-  container:       { flex: 1, backgroundColor: '#f8f9fa' },
-  listContent:     { paddingHorizontal: 16, paddingVertical: 12 },
-  errorContainer:  { marginHorizontal: 16, marginTop: 16, backgroundColor: '#fee2e2', borderRadius: 8, padding: 12, borderLeftWidth: 4, borderLeftColor: '#dc2626' },
-  errorText:       { color: '#991b1b', fontSize: 14 },
-  createButton:    { marginHorizontal: 16, marginTop: 16, backgroundColor: '#6366f1', paddingVertical: 12, borderRadius: 8, alignItems: 'center' },
-  createButtonText:{ color: '#ffffff', fontWeight: '600', fontSize: 16 },
-  emptyContainer:  { flex: 1, justifyContent: 'center', alignItems: 'center' },
-  filterContainer: { paddingHorizontal: 16, marginTop: 12 },
-  emptyIcon:       { fontSize: 48, marginBottom: 16 },
-  emptyText:       { fontSize: 18, fontWeight: '600', color: '#1a202c' },
-  card:            { backgroundColor: '#ffffff', borderRadius: 8, padding: 12, marginBottom: 12, flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  cardContent:     { flex: 1 },
-  cardTitle:       { fontSize: 16, fontWeight: '600', color: '#1a202c', marginBottom: 4 },
-  cardDescription: { fontSize: 12, color: '#718096', marginBottom: 4 },
-  cardMeta:        { flexDirection: 'row', gap: 8, flexWrap: 'wrap' },
-  cardMetaItem:    { fontSize: 11, color: '#6366f1', backgroundColor: '#eef2ff', paddingHorizontal: 8, paddingVertical: 4, borderRadius: 4 },
-  deleteButton:    { width: 36, height: 36, borderRadius: 6, backgroundColor: '#fee2e2', justifyContent: 'center', alignItems: 'center', marginLeft: 8 },
-  deleteIcon:      { fontSize: 18 },
-  cardActions:      { flexDirection: 'row', alignItems: 'center' },
-  editButton:      { width: 36, height: 36, borderRadius: 6, backgroundColor: '#e0e7ff', justifyContent: 'center', alignItems: 'center', marginLeft: 8 },
-  editIcon:        { fontSize: 18 },
-  modalContainer:  { flex: 1, backgroundColor: 'rgba(0,0,0,0.5)', justifyContent: 'flex-end' },
-  modalContent:    { backgroundColor: '#ffffff', borderTopLeftRadius: 16, borderTopRightRadius: 16, paddingHorizontal: 20, paddingVertical: 20, paddingBottom: 40 },
-  modalTitle:      { fontSize: 18, fontWeight: 'bold', marginBottom: 16, color: '#1a202c' },
-  input:           { borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, marginBottom: 12, fontSize: 14, color: '#1a202c', backgroundColor: '#f7fafc' },
-  modalButtons:    { flexDirection: 'row', gap: 12, marginTop: 16 },
-  button:          { flex: 1, paddingVertical: 12, borderRadius: 8, alignItems: 'center', justifyContent: 'center' },
-  buttonCancel:    { backgroundColor: '#f3f4f6' },
-  buttonCancelText:{ fontWeight: '600', color: '#4a5568' },
-  buttonCreate:    { backgroundColor: '#6366f1' },
-  buttonDisabled:  { backgroundColor: '#a5b4fc' },
-  buttonText:      { fontWeight: '600', color: '#ffffff' },
+  container: flexStyle => ({ flex: 1, backgroundColor: '#ffffff' }),
+  container: { flex: 1, backgroundColor: '#ffffff' },
+  loadingContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', backgroundColor: '#ffffff' },
+  loadingText: { marginTop: 8, color: '#888780', fontSize: 13 },
+
+  // Breadcrumbs (Migajas de Pan)
+  breadcrumbContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F4F8FD',
+    borderWidth: 0.5,
+    borderColor: '#E6F1FB',
+    borderRadius: 8,
+    paddingVertical: 8,
+    paddingHorizontal: 12,
+    marginHorizontal: 12,
+    marginTop: 12,
+    marginBottom: 6,
+  },
+  breadcrumbLink: { fontSize: 11, color: '#185FA5', fontWeight: '500' },
+  breadcrumbActive: { color: '#888780' },
+  breadcrumbSeparator: { fontSize: 11, color: '#B5D4F4', marginHorizontal: 4 },
+
+  header: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', padding: 12, paddingBottom: 6 },
+  headerTextContainer: { flex: 1 },
+  title: { fontSize: 14, fontWeight: '700', color: '#2C2C2A' },
+  subtitle: { fontSize: 11, color: '#888780', marginTop: 2 },
+  btnAdd: { backgroundColor: '#185FA5', width: 36, height: 36, borderRadius: 18, justifyContent: 'center', alignItems: 'center', elevation: 2 },
+
+  filterContainer: { paddingHorizontal: 12, marginBottom: 4 },
+
+  errorContainer: { marginHorizontal: 12, marginVertical: 6, padding: 10, backgroundColor: '#FCEBEB', borderWidth: 0.5, borderColor: '#E6F1FB', borderRadius: 8 },
+  errorText: { color: '#A32D2D', fontSize: 11 },
+
+  emptyContainer: { flex: 1, justifyContent: 'center', alignItems: 'center', padding: 32 },
+  emptyText: { marginTop: 8, fontSize: 11, color: '#888780', textAlign: 'center' },
+
+  listContent: { paddingHorizontal: 12, paddingVertical: 6, gap: 7 },
+  card: {
+    backgroundColor: '#ffffff',
+    borderRadius: 12,
+    borderWidth: 0.5,
+    borderColor: '#E6F1FB',
+    padding: 10,
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+  },
+  cardLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 0.82,
+  },
+  iconContainer: {
+    width: 38,
+    height: 38,
+    borderRadius: 8,
+    backgroundColor: '#E6F1FB',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 10,
+  },
+  cardInfoCol: {
+    flex: 1,
+  },
+  cardTitle: { fontSize: 12, fontWeight: '700', color: '#2C2C2A', marginBottom: 2 },
+  cardDescription: { fontSize: 10, color: '#888780', marginTop: 1, lineHeight: 14 },
+  badgeRow: { marginTop: 4, flexDirection: 'row', gap: 6 },
+  typeBadge: { flexDirection: 'row', alignItems: 'center', paddingVertical: 1.5, paddingHorizontal: 6, borderRadius: 8 },
+  badgeIda: { backgroundColor: '#E1F5EE' },
+  badgeVuelta: { backgroundColor: '#E6F1FB' },
+  typeBadgeText: { fontSize: 8, fontWeight: '600' },
+  textIda: { color: '#0F6E56' },
+  textVuelta: { color: '#0C447C' },
+  recorridoBadge: { flexDirection: 'row', alignItems: 'center', backgroundColor: '#F4F8FD', paddingVertical: 1.5, paddingHorizontal: 6, borderRadius: 8, maxWidth: 120 },
+  recorridoBadgeText: { color: '#888780', fontSize: 8, fontWeight: '500' },
+
+  cardRight: {
+    alignItems: 'flex-end',
+    justifyContent: 'space-between',
+    height: 48,
+    flex: 0.18,
+  },
+  openDetailsBtn: { padding: 4 },
+  actionsContainer: { flexDirection: 'row', gap: 4 },
+  editBtn: { width: 22, height: 22, borderRadius: 11, backgroundColor: '#E6F1FB', borderWidth: 0.5, borderColor: '#B5D4F4', justifyContent: 'center', alignItems: 'center' },
+  deleteBtn: { width: 22, height: 22, borderRadius: 11, backgroundColor: '#FCEBEB', borderWidth: 0.5, borderColor: '#fca5a5', justifyContent: 'center', alignItems: 'center' },
+
+  // Formulario
+  formContainer: { paddingHorizontal: 12, paddingVertical: 12 },
+  formTitle: { fontSize: 14, fontWeight: '700', color: '#2C2C2A', marginBottom: 2 },
+  formSubtitle: { fontSize: 11, color: '#888780', marginBottom: 16 },
+
+  formGroup: { marginBottom: 12 },
+  label: { fontSize: 11, fontWeight: '600', color: '#2C2C2A', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 },
+  input: { borderWidth: 1, borderColor: '#E6F1FB', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, fontSize: 13, color: '#2C2C2A', backgroundColor: '#F4F8FD' },
+
+  formButtons: { flexDirection: 'row', gap: 7, marginTop: 12 },
+  btnSecondary: { flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: '#FCEBEB', borderWidth: 0.5, borderColor: '#fca5a5', alignItems: 'center' },
+  btnSecondaryText: { color: '#A32D2D', fontSize: 13, fontWeight: '600' },
+  btnPrimary: { flex: 1, paddingVertical: 12, borderRadius: 12, backgroundColor: '#185FA5', alignItems: 'center', justifyContent: 'center' },
+  btnPrimaryText: { color: '#ffffff', fontSize: 13, fontWeight: '700' },
+  btnDisabled: { opacity: 0.6 },
 });
 
 const selectorStyles = StyleSheet.create({
-  container:       { marginBottom: 12 },
-  label:           { fontSize: 12, color: '#718096', marginBottom: 4, fontWeight: '600' },
-  trigger:         { borderWidth: 1, borderColor: '#e2e8f0', borderRadius: 8, paddingHorizontal: 12, paddingVertical: 10, backgroundColor: '#f7fafc', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
-  disabled:        { opacity: 0.5 },
-  triggerText:     { fontSize: 14, color: '#1a202c' },
-  arrow:           { fontSize: 12, color: '#718096' },
-  overlay:         { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
-  sheet:           { backgroundColor: '#fff', borderTopLeftRadius: 16, borderTopRightRadius: 16, padding: 20, paddingBottom: 40 },
-  sheetTitle:      { fontSize: 16, fontWeight: '700', color: '#1a202c', marginBottom: 12 },
-  option:          { paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#f3f4f6' },
-  optionSelected:  { backgroundColor: '#eef2ff', borderRadius: 8, paddingHorizontal: 8 },
-  optionText:      { fontSize: 15, color: '#1a202c' },
-  optionTextSelected: { color: '#6366f1', fontWeight: '600' },
+  container:          { marginBottom: 10 },
+  label:              { fontSize: 11, fontWeight: '600', color: '#2C2C2A', marginBottom: 6, textTransform: 'uppercase', letterSpacing: 0.5 },
+  trigger:            { borderWidth: 1, borderColor: '#E6F1FB', borderRadius: 12, paddingHorizontal: 12, paddingVertical: 10, backgroundColor: '#F4F8FD', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  disabled:           { opacity: 0.5 },
+  triggerText:        { fontSize: 13, color: '#2C2C2A', flex: 1, fontWeight: '500' },
+  overlay:            { flex: 1, backgroundColor: 'rgba(0,0,0,0.4)', justifyContent: 'flex-end' },
+  sheet:              { backgroundColor: '#ffffff', borderTopLeftRadius: 20, borderTopRightRadius: 20, padding: 20, paddingBottom: 40, maxHeight: '60%' },
+  sheetTitle:         { fontSize: 14, fontWeight: '700', color: '#2C2C2A', marginBottom: 12, textAlign: 'center' },
+  option:             { paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: '#edf2f7', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
+  optionSelected:     { backgroundColor: '#f5f3ff', borderRadius: 12, paddingHorizontal: 12 },
+  optionText:         { fontSize: 14, color: '#4a5568', fontWeight: '500' },
+  optionTextSelected: { color: '#6366f1', fontWeight: '700' },
 });

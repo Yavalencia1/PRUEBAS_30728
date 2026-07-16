@@ -37,6 +37,8 @@ def _serializar_alumno(alumno: Alumno) -> dict:
 		"parada_id": alumno.parada_id,
 		"parada_nombre": alumno.parada.nombre if alumno.parada else "Sin parada asignada",
 		"fecha_nacimiento": alumno.fecha_nacimiento,
+		"curso": alumno.curso,
+		"fotografia": alumno.fotografia,
 		"presente": False,  # Campo para uso en pantalla de conductor
 	}
 
@@ -209,6 +211,8 @@ async def crear_alumno(
 		recorrido_id=datos.recorrido_id,
 		parada_id=datos.parada_id,
 		fecha_nacimiento=datos.fecha_nacimiento,
+		curso=datos.curso,
+		fotografia=datos.fotografia,
 	)
 
 	db.add(alumno)

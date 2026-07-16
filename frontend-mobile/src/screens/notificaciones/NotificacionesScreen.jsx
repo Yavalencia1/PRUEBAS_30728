@@ -56,8 +56,8 @@ export default function NotificacionesScreen() {
         >
           <Ionicons
             name="checkmark-done-outline"
-            size={22}
-            color={markingAll || notifications.length === 0 ? '#a0aec0' : '#6366f1'}
+            size={20}
+            color={markingAll || notifications.length === 0 ? '#a0aec0' : '#185FA5'}
           />
         </TouchableOpacity>
       ),
@@ -123,8 +123,8 @@ export default function NotificacionesScreen() {
 
   if (loading && !notifications.length) {
     return (
-      <View style={styles.container}>
-        <ActivityIndicator size="large" color="#6366f1" />
+      <View style={styles.centerContainer}>
+        <ActivityIndicator size="large" color="#185FA5" />
       </View>
     );
   }
@@ -139,11 +139,8 @@ export default function NotificacionesScreen() {
 
       {notifications.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyIcon}>🔔</Text>
+          <Ionicons name="notifications-off-outline" size={28} color="#B4B2A9" style={{ marginBottom: 6 }} />
           <Text style={styles.emptyText}>No hay notificaciones</Text>
-          <Text style={styles.emptySubtext}>
-            Tus notificaciones aparecerán aquí
-          </Text>
         </View>
       ) : (
         <FlatList
@@ -165,45 +162,50 @@ export default function NotificacionesScreen() {
 }
 
 function NotificationItem({ notification, onMarcarLeida, onDelete }) {
-  const getTypeColor = (tipo) => {
-    const colors = {
-      llegada: '#10b981',
-      salida: '#06b6d4',
-      pago: '#f59e0b',
-      alerta: '#ef4444',
-    };
-    return colors[tipo?.toLowerCase()] || '#6366f1';
+  const getTheme = (tipo) => {
+    switch (tipo?.toLowerCase()) {
+      case 'llegada':
+        return { bg: '#E6F1FB', icon: 'bus-outline', color: '#378ADD' };
+      case 'pago':
+        return { bg: '#FAEEDA', icon: 'card-outline', color: '#EF9F27' };
+      case 'alerta':
+        return { bg: '#FCEBEB', icon: 'warning-outline', color: '#E24B4A' };
+      default:
+        return { bg: '#F4F8FD', icon: 'notifications-outline', color: '#185FA5' };
+    }
   };
 
-  const getTypeIcon = (tipo) => {
-    const icons = {
-      llegada: '📍',
-      salida: '🚌',
-      pago: '💳',
-      alerta: '⚠️',
-    };
-    return icons[tipo?.toLowerCase()] || '📬';
-  };
+  const theme = getTheme(notification.tipo);
 
   return (
-    <View style={styles.notificationCard}>
-      <View
-        style={[
-          styles.notificationIconContainer,
-          { backgroundColor: getTypeColor(notification.tipo) + '20' },
-        ]}
-      >
-        <Text style={styles.notificationIcon}>{getTypeIcon(notification.tipo)}</Text>
+    <View
+      style={[
+        styles.notificationCard,
+        !notification.leida && { borderLeftWidth: 3, borderLeftColor: theme.color },
+        notification.leida && { opacity: 0.75 },
+      ]}
+    >
+      <View style={[styles.notificationIconContainer, { backgroundColor: theme.bg }]}>
+        <Ionicons name={theme.icon} size={16} color={theme.color} />
       </View>
 
       <View style={styles.notificationContent}>
-        <Text style={styles.notificationTitle}>{notification.titulo}</Text>
-        <Text style={styles.notificationMessage}>{notification.mensaje}</Text>
-        {notification.fecha && (
-          <Text style={styles.notificationDate}>
-            {formatDate(notification.fecha)}
-          </Text>
-        )}
+        <View style={styles.titleRow}>
+          <View style={styles.titleWithDot}>
+            {!notification.leida && <View style={styles.unreadDot} />}
+            <Text style={styles.notificationTitle} numberOfLines={1} ellipsizeMode="tail">
+              {notification.titulo}
+            </Text>
+          </View>
+          {notification.fecha && (
+            <Text style={styles.notificationDate}>
+              {formatDate(notification.fecha)}
+            </Text>
+          )}
+        </View>
+        <Text style={styles.notificationMessage} numberOfLines={2} ellipsizeMode="tail">
+          {notification.mensaje}
+        </Text>
       </View>
 
       <View style={styles.notificationActions}>
@@ -212,14 +214,14 @@ function NotificationItem({ notification, onMarcarLeida, onDelete }) {
             onPress={() => onMarcarLeida(notification)}
             style={styles.actionButton}
           >
-            <Text style={styles.actionIcon}>✓</Text>
+            <Ionicons name="checkmark" size={14} color="#0F6E56" />
           </TouchableOpacity>
         )}
         <TouchableOpacity
           onPress={() => onDelete(notification)}
-          style={[styles.actionButton, { backgroundColor: '#fee2e2' }]}
+          style={[styles.actionButton, { backgroundColor: '#FCEBEB', borderColor: '#fca5a5' }]}
         >
-          <Text style={styles.actionIcon}>🗑️</Text>
+          <Ionicons name="trash-outline" size={14} color="#A32D2D" />
         </TouchableOpacity>
       </View>
     </View>
@@ -228,19 +230,17 @@ function NotificationItem({ notification, onMarcarLeida, onDelete }) {
 
 function formatDate(dateString) {
   if (!dateString) return '';
-  
-  // Calcular tiempo relativo
   try {
     const diffMs = new Date() - new Date(dateString);
     const diffMins = Math.floor(diffMs / 1000 / 60);
     const diffHrs = Math.floor(diffMins / 60);
     const diffDays = Math.floor(diffHrs / 24);
-    
-    if (diffMins < 1) return 'Hace unos segundos';
-    if (diffMins < 60) return `Hace ${diffMins} min`;
-    if (diffHrs < 24) return `Hace ${diffHrs}h`;
-    if (diffDays < 7) return `Hace ${diffDays}d`;
-    
+
+    if (diffMins < 1) return 'Ahora';
+    if (diffMins < 60) return `${diffMins} min`;
+    if (diffHrs < 24) return `${diffHrs}h`;
+    if (diffDays < 7) return `${diffDays}d`;
+
     return new Date(dateString).toLocaleDateString('es-ES', {
       month: 'short',
       day: 'numeric',
@@ -253,103 +253,117 @@ function formatDate(dateString) {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#f8f9fa',
+    backgroundColor: '#ffffff',
+  },
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#ffffff',
   },
   headerButton: {
     paddingHorizontal: 12,
     paddingVertical: 4,
   },
   listContent: {
-    paddingHorizontal: 16,
-    paddingVertical: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 12,
+    gap: 7,
   },
   errorContainer: {
-    marginHorizontal: 16,
-    marginTop: 16,
-    backgroundColor: '#fee2e2',
-    borderRadius: 8,
-    padding: 12,
-    borderLeftWidth: 4,
-    borderLeftColor: '#dc2626',
+    marginHorizontal: 12,
+    marginTop: 12,
+    backgroundColor: '#FCEBEB',
+    borderRadius: 10,
+    padding: 10,
+    borderWidth: 0.5,
+    borderColor: '#E6F1FB',
   },
   errorText: {
-    color: '#991b1b',
-    fontSize: 14,
+    color: '#A32D2D',
+    fontSize: 11,
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-    paddingHorizontal: 32,
-  },
-  emptyIcon: {
-    fontSize: 48,
-    marginBottom: 16,
+    paddingHorizontal: 24,
   },
   emptyText: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#1a202c',
-    marginBottom: 8,
-    textAlign: 'center',
-  },
-  emptySubtext: {
-    fontSize: 14,
-    color: '#718096',
+    fontSize: 11,
+    color: '#888780',
     textAlign: 'center',
   },
   notificationCard: {
     backgroundColor: '#ffffff',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 12,
+    borderRadius: 10,
+    borderWidth: 0.5,
+    borderColor: '#E6F1FB',
+    paddingVertical: 10,
+    paddingHorizontal: 12,
     flexDirection: 'row',
-    borderLeftWidth: 4,
-    borderLeftColor: '#e2e8f0',
+    alignItems: 'center',
+    justifyContent: 'space-between',
   },
   notificationIconContainer: {
-    width: 48,
-    height: 48,
-    borderRadius: 24,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
     justifyContent: 'center',
     alignItems: 'center',
-    marginRight: 12,
-  },
-  notificationIcon: {
-    fontSize: 20,
+    marginRight: 10,
   },
   notificationContent: {
     flex: 1,
+    marginRight: 10,
+  },
+  titleRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 4,
+  },
+  titleWithDot: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 0.75,
+  },
+  unreadDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+    backgroundColor: '#185FA5',
+    marginRight: 6,
   },
   notificationTitle: {
-    fontSize: 14,
-    fontWeight: '600',
-    color: '#1a202c',
-    marginBottom: 4,
-  },
-  notificationMessage: {
-    fontSize: 12,
-    color: '#4a5568',
-    marginBottom: 4,
+    fontSize: 11,
+    fontWeight: '500',
+    color: '#2C2C2A',
+    flex: 1,
   },
   notificationDate: {
+    fontSize: 9,
+    color: '#888780',
+    flex: 0.25,
+    textAlign: 'right',
+  },
+  notificationMessage: {
     fontSize: 11,
-    color: '#a0aec0',
+    color: '#888780',
   },
   notificationActions: {
     flexDirection: 'row',
-    gap: 6,
+    gap: 4,
     justifyContent: 'flex-end',
   },
   actionButton: {
-    width: 32,
-    height: 32,
-    borderRadius: 6,
-    backgroundColor: '#f0f4f8',
+    width: 24,
+    height: 24,
+    borderRadius: 12,
+    backgroundColor: '#E1F5EE',
+    borderWidth: 0.5,
+    borderColor: '#a7f3d0',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  actionIcon: {
-    fontSize: 16,
   },
 });

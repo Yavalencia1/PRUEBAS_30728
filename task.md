@@ -1,0 +1,20 @@
+- [x] Corregir el cierre de sesión automático al presionar "Mapa" (`MapaTrackingScreen.jsx`)
+  - [x] Agregar check de Platform OS web para evitar crashes del mapa en el navegador
+- [x] Optimizar el diseño del Perfil (`ProfileScreen.jsx`)
+  - [x] Cambiar visualización a tarjetas verticales apiladas para evitar solapamiento
+  - [x] Reemplazar emojis de la cabecera e íconos por Ionicons correspondientes
+- [x] Rediseñar AppBar, Headers y BottomNavigationBar (`AppNavigator.jsx`)
+- [x] Aplicar rediseño de métricas y Hero Card en Dashboard (`DashboardScreen.jsx`)
+- [x] Implementar chips de filtro y tarjetas de cobro compactas en Pagos (`PagosScreen.jsx`)
+- [x] Refactorizar la lista de notificaciones con bordes finos, opacidades y unread dots (`NotificacionesScreen.jsx`)
+- [x] Crear el widget reutilizable `StatusBadge` (`StatusBadge.jsx`)
+- [x] Eliminar emojis heredados y reemplazarlos por iconos profesionales
+  - [x] Modificar LoginScreen.jsx (reemplazar autobús, llaves, correo, candados, alertas, checkmarks)
+  - [x] Modificar RegisterScreen.jsx (reemplazar candado, sobre, usuario, teléfonos, alertas, botones)
+  - [x] Modificar ConductorScreen.jsx (reemplazar emojis en estado activo/idle, indicadores gps/ws y alertas)
+  - [x] Modificar SettingsScreen.jsx (reemplazar papelera en limpiar caché)
+- [x] Mejorar adaptabilidad responsive contra solapamientos de barras de estado
+  - [x] Envolver LoginScreen.jsx en SafeAreaView y KeyboardAvoidingView adaptado
+  - [x] Envolver RegisterScreen.jsx en SafeAreaView y KeyboardAvoidingView adaptado
+  - [x] Estandarizar diseño de cabeceras en GestionRutasScreen.jsx a cabeceras globales
+- [x] Corregir map view crashes en el navegador web para ParadasScreen.jsx

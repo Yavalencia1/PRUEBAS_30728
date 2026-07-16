@@ -10,6 +10,10 @@ class UsuarioBase(BaseModel):
     email: EmailStr
     telefono: str | None = Field(default=None, max_length=30)
     rol: str = Field(default="padre")
+    placa: str | None = Field(default=None, max_length=20)
+    numero_ruta: str | None = Field(default=None, max_length=50)
+    nombre_ruta: str | None = Field(default=None, max_length=100)
+    fotografia: str | None = Field(default=None, max_length=500)
 
 
 class UsuarioCrear(UsuarioBase):
@@ -22,6 +26,10 @@ class UsuarioActualizar(BaseModel):
     telefono: str | None = Field(default=None, max_length=30)
     rol: str | None = None
     password: str | None = Field(default=None, min_length=8, max_length=128)
+    placa: str | None = Field(default=None, max_length=20)
+    numero_ruta: str | None = Field(default=None, max_length=50)
+    nombre_ruta: str | None = Field(default=None, max_length=100)
+    fotografia: str | None = Field(default=None, max_length=500)
 
 
 class UsuarioLectura(UsuarioBase):

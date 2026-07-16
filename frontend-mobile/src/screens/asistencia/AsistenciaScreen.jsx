@@ -10,6 +10,7 @@ import {
   Alert,
   RefreshControl,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { api } from '../../services/api';
 import { useAuth } from '../../context/AuthContext';
 
@@ -95,7 +96,7 @@ export default function AsistenciaScreen() {
 
   if (loading && !sesiones.length) {
     return (
-      <View style={styles.container}>
+      <View style={styles.centerContainer}>
         <ActivityIndicator size="large" color="#6366f1" />
       </View>
     );
@@ -115,13 +116,14 @@ export default function AsistenciaScreen() {
     <View style={styles.container}>
       {error && (
         <View style={styles.errorContainer}>
+          <Ionicons name="alert-circle-outline" size={20} color="#991b1b" style={{ marginRight: 8 }} />
           <Text style={styles.errorText}>{error}</Text>
         </View>
       )}
 
       {sesiones.length === 0 ? (
         <View style={styles.emptyContainer}>
-          <Text style={styles.emptyIcon}>📋</Text>
+          <Ionicons name="clipboard-outline" size={48} color="#a0aec0" style={{ marginBottom: 12 }} />
           <Text style={styles.emptyText}>No hay sesiones</Text>
         </View>
       ) : (
@@ -156,18 +158,21 @@ function SesionCard({ sesion, canDelete, onPress, onDelete }) {
     >
       <View style={styles.cardContent}>
         <Text style={styles.cardTitle}>
-          {sesion.recorrido?.nombre || 'Sin nombre'}
+          {sesion.recorrido_nombre || sesion.recorrido?.nombre || 'Sin nombre'}
         </Text>
         <View style={styles.cardDetails}>
-          <Text style={styles.detailText}>
-            📅 {formatDate(sesion.fecha_inicio)}
-          </Text>
-          <Text style={styles.detailText}>
-            ⏱️ {duracion}
-          </Text>
-          <Text style={styles.detailText}>
-            ✅ {sesion.asistencias_count || 0} alumnos
-          </Text>
+          <View style={styles.detailRow}>
+            <Ionicons name="calendar-outline" size={14} color="#718096" style={{ marginRight: 6 }} />
+            <Text style={styles.detailText}>{formatDate(sesion.inicio)}</Text>
+          </View>
+          <View style={styles.detailRow}>
+            <Ionicons name="time-outline" size={14} color="#718096" style={{ marginRight: 6 }} />
+            <Text style={styles.detailText}>{duracion}</Text>
+          </View>
+          <View style={styles.detailRow}>
+            <Ionicons name="people-outline" size={14} color="#718096" style={{ marginRight: 6 }} />
+            <Text style={styles.detailText}>{sesion.total_presentes || sesion.asistencias_count || 0} alumnos</Text>
+          </View>
         </View>
       </View>
 
@@ -176,7 +181,7 @@ function SesionCard({ sesion, canDelete, onPress, onDelete }) {
           style={styles.deleteButton}
           onPress={() => onDelete(sesion)}
         >
-          <Text style={styles.deleteIcon}>🗑️</Text>
+          <Ionicons name="trash-outline" size={18} color="#ef4444" />
         </TouchableOpacity>
       )}
     </TouchableOpacity>
@@ -188,47 +193,75 @@ function SesionDetailView({ sesion, asistencias, onBack }) {
     <View style={styles.container}>
       <View style={styles.detailHeader}>
         <TouchableOpacity onPress={onBack} style={styles.backButton}>
-          <Text style={styles.backButtonText}>← Atrás</Text>
+          <Ionicons name="arrow-back-outline" size={20} color="#6366f1" style={{ marginRight: 4 }} />
+          <Text style={styles.backButtonText}>Atrás</Text>
         </TouchableOpacity>
-        <Text style={styles.detailTitle}>{sesion.recorrido?.nombre}</Text>
+        <Text style={styles.detailTitle} numberOfLines={1} ellipsizeMode="tail">
+          {sesion.recorrido_nombre || sesion.recorrido?.nombre}
+        </Text>
       </View>
 
       <ScrollView contentContainerStyle={styles.detailContent}>
         <View style={styles.detailCard}>
           <Text style={styles.detailCardLabel}>Información de la Sesión</Text>
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Fecha:</Text>
-            <Text style={styles.detailValue}>{formatDate(sesion.fecha_inicio)}</Text>
+          <View style={styles.detailRowSpace}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Ionicons name="calendar-outline" size={16} color="#718096" style={{ marginRight: 6 }} />
+              <Text style={styles.detailLabel}>Fecha:</Text>
+            </View>
+            <Text style={styles.detailValue}>{formatDate(sesion.inicio)}</Text>
           </View>
-          <View style={styles.detailRow}>
-            <Text style={styles.detailLabel}>Duración:</Text>
+          <View style={styles.detailRowSpace}>
+            <View style={{ flexDirection: 'row', alignItems: 'center' }}>
+              <Ionicons name="time-outline" size={16} color="#718096" style={{ marginRight: 6 }} />
+              <Text style={styles.detailLabel}>Duración:</Text>
+            </View>
             <Text style={styles.detailValue}>
-              {Math.floor(sesion.duracion_minutos / 60)}h {sesion.duracion_minutos % 60}m
+              {sesion.duracion_minutos 
+                ? `${Math.floor(sesion.duracion_minutos / 60)}h ${sesion.duracion_minutos % 60}m`
+                : 'En progreso'}
             </Text>
           </View>
         </View>
 
-        <Text style={styles.asistenciasTitle}>Asistencias</Text>
+        <Text style={styles.asistenciasTitle}>Alumnos y Asistencias</Text>
 
         {asistencias.length === 0 ? (
           <View style={styles.noDataContainer}>
-            <Text style={styles.noDataText}>No hay registros de asistencia</Text>
+            <Ionicons name="people-outline" size={32} color="#a0aec0" style={{ marginBottom: 8 }} />
+            <Text style={styles.noDataText}>No hay alumnos registrados en esta sesión</Text>
           </View>
         ) : (
           asistencias.map((asistencia) => (
             <View key={asistencia.id} style={styles.asistenciaItem}>
               <View style={styles.asistenciaInfo}>
-                <Text style={styles.asistenciaAlumno}>
-                  {asistencia.alumno?.nombre} {asistencia.alumno?.apellido}
-                </Text>
-                <View style={styles.asistenciaHoras}>
-                  <Text style={styles.asistenciaHora}>
-                    ↓ {formatTime(asistencia.hora_subida)}
+                <View style={styles.asistenciaNameContainer}>
+                  <Ionicons name="person-circle-outline" size={24} color="#6366f1" style={{ marginRight: 8 }} />
+                  <Text style={styles.asistenciaAlumno}>
+                    {asistencia.alumno_nombre || `${asistencia.alumno?.nombre} ${asistencia.alumno?.apellido}`}
                   </Text>
+                </View>
+                <View style={styles.asistenciaHoras}>
+                  {asistencia.hora_subida ? (
+                    <View style={styles.timeTag}>
+                      <Ionicons name="enter-outline" size={12} color="#4f46e5" style={{ marginRight: 2 }} />
+                      <Text style={styles.asistenciaHora}>
+                        {formatTime(asistencia.hora_subida)}
+                      </Text>
+                    </View>
+                  ) : (
+                    <View style={[styles.timeTag, { backgroundColor: '#fee2e2' }]}>
+                      <Ionicons name="close-circle-outline" size={12} color="#ef4444" style={{ marginRight: 2 }} />
+                      <Text style={[styles.asistenciaHora, { color: '#ef4444' }]}>Ausente</Text>
+                    </View>
+                  )}
                   {asistencia.hora_bajada && (
-                    <Text style={styles.asistenciaHora}>
-                      ↑ {formatTime(asistencia.hora_bajada)}
-                    </Text>
+                    <View style={[styles.timeTag, { backgroundColor: '#ccfbf1' }]}>
+                      <Ionicons name="exit-outline" size={12} color="#0d9488" style={{ marginRight: 2 }} />
+                      <Text style={[styles.asistenciaHora, { color: '#0d9488' }]}>
+                        {formatTime(asistencia.hora_bajada)}
+                      </Text>
+                    </View>
                   )}
                 </View>
               </View>
@@ -252,6 +285,7 @@ function formatDate(dateString) {
   });
 }
 
+// Helper para formatear la hora (soporta UTC/ISO strings y horas simples)
 function formatTime(timeString) {
   if (!timeString) return '--:--';
   const date = new Date(timeString);
@@ -266,9 +300,15 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#f8f9fa',
   },
+  centerContainer: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: '#f8f9fa',
+  },
   listContent: {
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 16,
   },
   errorContainer: {
     marginHorizontal: 16,
@@ -278,82 +318,93 @@ const styles = StyleSheet.create({
     padding: 12,
     borderLeftWidth: 4,
     borderLeftColor: '#dc2626',
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   errorText: {
     color: '#991b1b',
     fontSize: 14,
+    fontWeight: '500',
   },
   emptyContainer: {
     flex: 1,
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  emptyIcon: {
-    fontSize: 48,
-    marginBottom: 16,
+    paddingVertical: 40,
   },
   emptyText: {
-    fontSize: 18,
+    fontSize: 15,
     fontWeight: '600',
-    color: '#1a202c',
+    color: '#a0aec0',
   },
   card: {
     backgroundColor: '#ffffff',
-    borderRadius: 8,
-    padding: 12,
+    borderRadius: 12,
+    padding: 16,
     marginBottom: 12,
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#edf2f7',
+    shadowColor: '#1a202c',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
   },
   cardContent: {
     flex: 1,
   },
   cardTitle: {
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
     color: '#1a202c',
-    marginBottom: 8,
+    marginBottom: 10,
   },
   cardDetails: {
-    gap: 4,
+    gap: 6,
+  },
+  detailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
   },
   detailText: {
     fontSize: 12,
     color: '#718096',
+    fontWeight: '500',
   },
   deleteButton: {
     width: 36,
     height: 36,
-    borderRadius: 6,
+    borderRadius: 8,
     backgroundColor: '#fee2e2',
     justifyContent: 'center',
     alignItems: 'center',
-  },
-  deleteIcon: {
-    fontSize: 18,
   },
   detailHeader: {
     backgroundColor: '#ffffff',
     borderBottomWidth: 1,
     borderBottomColor: '#e2e8f0',
     paddingHorizontal: 16,
-    paddingVertical: 12,
+    paddingVertical: 14,
     flexDirection: 'row',
     alignItems: 'center',
   },
   backButton: {
-    paddingRight: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginRight: 12,
   },
   backButtonText: {
     color: '#6366f1',
-    fontWeight: '600',
+    fontWeight: '700',
     fontSize: 14,
   },
   detailTitle: {
     flex: 1,
     fontSize: 16,
-    fontWeight: '600',
+    fontWeight: '700',
     color: '#1a202c',
   },
   detailContent: {
@@ -362,55 +413,85 @@ const styles = StyleSheet.create({
   },
   detailCard: {
     backgroundColor: '#ffffff',
-    borderRadius: 8,
-    padding: 12,
-    marginBottom: 16,
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+    borderWidth: 1,
+    borderColor: '#edf2f7',
+    shadowColor: '#1a202c',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.03,
+    shadowRadius: 4,
+    elevation: 1,
   },
   detailCardLabel: {
-    fontSize: 12,
-    color: '#718096',
-    marginBottom: 8,
+    fontSize: 11,
+    color: '#a0aec0',
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 12,
   },
-  detailRow: {
+  detailRowSpace: {
     flexDirection: 'row',
     justifyContent: 'space-between',
-    marginBottom: 8,
+    alignItems: 'center',
+    marginBottom: 10,
   },
   detailLabel: {
-    fontSize: 12,
-    color: '#718096',
+    fontSize: 13,
+    color: '#4a5568',
+    fontWeight: '500',
   },
   detailValue: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     color: '#1a202c',
   },
   asistenciasTitle: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#1a202c',
-    marginBottom: 8,
+    color: '#4a5568',
+    marginBottom: 10,
+    paddingLeft: 4,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
   },
   noDataContainer: {
     backgroundColor: '#ffffff',
-    borderRadius: 8,
-    padding: 16,
+    borderRadius: 12,
+    padding: 24,
     alignItems: 'center',
+    borderWidth: 1,
+    borderColor: '#edf2f7',
   },
   noDataText: {
-    color: '#718096',
-    fontSize: 14,
+    color: '#a0aec0',
+    fontSize: 13,
+    fontWeight: '500',
   },
   asistenciaItem: {
     backgroundColor: '#ffffff',
-    borderRadius: 8,
-    padding: 12,
+    borderRadius: 12,
+    padding: 14,
     marginBottom: 8,
+    borderWidth: 1,
+    borderColor: '#edf2f7',
+    shadowColor: '#1a202c',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.02,
+    shadowRadius: 3,
+    elevation: 1,
   },
   asistenciaInfo: {
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
+  },
+  asistenciaNameContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    flex: 0.5,
   },
   asistenciaAlumno: {
     fontSize: 14,
@@ -419,11 +500,21 @@ const styles = StyleSheet.create({
   },
   asistenciaHoras: {
     flexDirection: 'row',
-    gap: 8,
+    gap: 6,
+    flex: 0.5,
+    justifyContent: 'flex-end',
+  },
+  timeTag: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#e0e7ff',
+    paddingVertical: 3,
+    paddingHorizontal: 8,
+    borderRadius: 6,
   },
   asistenciaHora: {
-    fontSize: 12,
-    color: '#6366f1',
+    fontSize: 11,
+    color: '#4f46e5',
     fontWeight: '600',
   },
 });

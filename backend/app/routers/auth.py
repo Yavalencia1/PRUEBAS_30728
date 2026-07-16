@@ -2,7 +2,7 @@
 from datetime import timedelta, datetime
 from typing import Dict, Any
 
-from fastapi import APIRouter, Depends, HTTPException, status, Header
+from fastapi import APIRouter, Depends, HTTPException, status, Header, Request
 from fastapi.security import OAuth2PasswordBearer
 from sqlalchemy import select
 from sqlalchemy.exc import IntegrityError
@@ -81,15 +81,43 @@ async def obtener_usuario_actual(
 @router.post("/registro", response_model=dict)
 async def registrar_usuario(
     datos: RegistroRequest,
+    request: Request,
     x_admin_secret: str | None = Header(default=None, alias="X-Admin-Secret"),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
-    if datos.rol.lower() == "admin":
-        if x_admin_secret != settings.secret_key: # Usando secret_key o alguna otra para simplificar
-            raise HTTPException(status_code=status.HTTP_403_FORBIDDEN, detail="Secret de admin inválido")
+    rol_solicitado = datos.rol.lower()
+
+    if rol_solicitado != "padre":
+        autorizado = False
+
+        # 1. Validar por X-Admin-Secret
+        if x_admin_secret and x_admin_secret == settings.secret_key:
+            autorizado = True
+
+        # 2. Validar por cabecera de autenticación Bearer (Admin logueado)
+        if not autorizado:
+            auth_header = request.headers.get("Authorization")
+            if auth_header and auth_header.startswith("Bearer "):
+                token = auth_header.split(" ")[1]
+                try:
+                    payload = obtener_payload_desde_token(token)
+                    if payload.get("typ") == "access":
+                        email = obtener_subject_desde_token(token)
+                        resultado = await db.execute(select(Usuario).where(Usuario.email == email))
+                        usuario_actual = resultado.scalar_one_or_none()
+                        if usuario_actual and usuario_actual.rol == RolUsuario.admin:
+                            autorizado = True
+                except Exception:
+                    pass
+
+        if not autorizado:
+            raise HTTPException(
+                status_code=status.HTTP_403_FORBIDDEN,
+                detail="No autorizado. Solo un administrador puede registrar usuarios con este rol."
+            )
 
     try:
-        rol_usuario = RolUsuario(datos.rol.lower())
+        rol_usuario = RolUsuario(rol_solicitado)
     except ValueError as error:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Rol inválido") from error
 
@@ -100,6 +128,10 @@ async def registrar_usuario(
         telefono=datos.telefono,
         password_hash=generar_hash_contraseña(datos.password),
         rol=rol_usuario,
+        placa=datos.placa,
+        numero_ruta=datos.numero_ruta,
+        nombre_ruta=datos.nombre_ruta,
+        fotografia=datos.fotografia,
     )
 
     db.add(usuario)

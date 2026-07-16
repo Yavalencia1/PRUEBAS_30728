@@ -9,7 +9,9 @@ import {
   ActivityIndicator,
   KeyboardAvoidingView,
   Platform,
+  SafeAreaView,
 } from 'react-native';
+import { Ionicons } from '@expo/vector-icons';
 import { useAuth } from '../context/AuthContext';
 import {
   validateNombre,
@@ -20,63 +22,28 @@ import {
   validateConfirmarPassword,
 } from '../utils/validation';
 
-// ─── Selector de rol táctil (reemplaza Picker nativo de RN ─────────────────────
-// react-native eliminó <Picker> del core. Usamos botones táctiles.
-const ROL_OPTIONS = [
-  { label: '👨‍👩‍👧 Padre / Madre', value: 'padre' },
-  { label: '🚌 Conductor',         value: 'conductor' },
-  { label: '🏢 Dueño',             value: 'dueno' },
-  { label: '⚙️ Administrador',     value: 'admin' },
-];
-
-function RolPicker({ value, onChange, disabled }) {
-  return (
-    <View style={styles.rolPickerContainer}>
-      {ROL_OPTIONS.map((opt) => {
-        const selected = value === opt.value;
-        return (
-          <Pressable
-            key={opt.value}
-            style={[styles.rolOption, selected && styles.rolOptionSelected]}
-            onPress={() => onChange(opt.value)}
-            disabled={disabled}
-          >
-            <Text style={[styles.rolOptionText, selected && styles.rolOptionTextSelected]}>
-              {opt.label}
-            </Text>
-          </Pressable>
-        );
-      })}
-    </View>
-  );
-}
-
-// ─── Indicador de fortaleza de contraseña ─────────────────────────────────────
-
 function calcularFortaleza(pass) {
   if (!pass) return { percent: 0, label: 'Vacía', color: '#cbd5e0' };
   let strength = 0;
-  if (pass.length >= 8)                       strength += 25;
-  if (/[A-Z]/.test(pass))                     strength += 25;
-  if (/\d/.test(pass))                        strength += 25;
-  if (/[!@#$%^&*(),.?":{}|<>]/.test(pass))   strength += 25;
+  if (pass.length >= 8) strength += 25;
+  if (/[A-Z]/.test(pass)) strength += 25;
+  if (/\d/.test(pass)) strength += 25;
+  if (/[!@#$%^&*(),.?":{}|<>]/.test(pass)) strength += 25;
 
-  if (strength === 100) return { percent: 100, label: 'Fuerte',  color: '#38a169' };
-  if (strength > 50)    return { percent: strength, label: 'Media', color: '#ed8936' };
-  return                       { percent: strength, label: 'Débil', color: '#e53e3e' };
+  if (strength === 100) return { percent: 100, label: 'Fuerte', color: '#0d9488' };
+  if (strength > 50) return { percent: strength, label: 'Media', color: '#EF9F27' };
+  return { percent: strength, label: 'Débil', color: '#E24B4A' };
 }
-
-// ─── Pantalla principal ───────────────────────────────────────────────────────
 
 export default function RegisterScreen({ navigation }) {
   const [formData, setFormData] = useState({
-    nombre:             '',
-    apellido:           '',
-    email:              '',
-    telefono:           '',
-    password:           '',
+    nombre: '',
+    apellido: '',
+    email: '',
+    telefono: '',
+    password: '',
     confirmar_password: '',
-    rol:                'padre',
+    rol: 'padre',
   });
 
   const [errorMsg, setErrorMsg] = useState(null);
@@ -123,15 +90,16 @@ export default function RegisterScreen({ navigation }) {
   const handleGoBack = useCallback(() => navigation.goBack(), [navigation]);
 
   return (
-    <KeyboardAvoidingView
-      behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
-      style={styles.container}
-    >
-      <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
+    <SafeAreaView style={styles.container}>
+      <KeyboardAvoidingView
+        behavior={Platform.OS === 'ios' ? 'padding' : 'height'}
+        style={{ flex: 1 }}
+      >
+        <ScrollView contentContainerStyle={styles.scrollContent} showsVerticalScrollIndicator={false}>
         {/* Header */}
         <View style={styles.headerContainer}>
           <Pressable style={styles.backButton} onPress={handleGoBack} disabled={isLoading}>
-            <Text style={styles.backButtonText}>←</Text>
+            <Ionicons name="arrow-back" size={20} color="#185FA5" />
           </Pressable>
           <View style={styles.headerContent}>
             <Text style={styles.title}>Crear Cuenta</Text>
@@ -144,7 +112,7 @@ export default function RegisterScreen({ navigation }) {
           {/* Alerta de error */}
           {errorMsg && (
             <View style={styles.alertContainer}>
-              <Text style={styles.alertIcon}>❌</Text>
+              <Ionicons name="alert-circle-outline" size={18} color="#A32D2D" style={styles.alertIcon} />
               <Text style={styles.alertText}>{errorMsg}</Text>
             </View>
           )}
@@ -153,7 +121,7 @@ export default function RegisterScreen({ navigation }) {
           <View style={styles.formGroup}>
             <Text style={styles.label}>Nombre</Text>
             <View style={styles.inputContainer}>
-              <Text style={styles.iconText}>👤</Text>
+              <Ionicons name="person-outline" size={18} color="#185FA5" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
                 placeholder="Juan"
@@ -169,6 +137,7 @@ export default function RegisterScreen({ navigation }) {
           <View style={styles.formGroup}>
             <Text style={styles.label}>Apellido</Text>
             <View style={styles.inputContainer}>
+              <Ionicons name="person-outline" size={18} color="#185FA5" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
                 placeholder="Pérez"
@@ -184,7 +153,7 @@ export default function RegisterScreen({ navigation }) {
           <View style={styles.formGroup}>
             <Text style={styles.label}>Correo Electrónico</Text>
             <View style={styles.inputContainer}>
-              <Text style={styles.iconText}>✉️</Text>
+              <Ionicons name="mail-outline" size={18} color="#185FA5" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
                 placeholder="nombre@ejemplo.com"
@@ -203,7 +172,7 @@ export default function RegisterScreen({ navigation }) {
           <View style={styles.formGroup}>
             <Text style={styles.label}>Teléfono (10 dígitos)</Text>
             <View style={styles.inputContainer}>
-              <Text style={styles.iconText}>📱</Text>
+              <Ionicons name="call-outline" size={18} color="#185FA5" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
                 placeholder="1234567890"
@@ -217,21 +186,11 @@ export default function RegisterScreen({ navigation }) {
             </View>
           </View>
 
-          {/* Rol — selector táctil (sin Picker nativo) */}
-          <View style={styles.formGroup}>
-            <Text style={styles.label}>Tipo de Rol</Text>
-            <RolPicker
-              value={formData.rol}
-              onChange={(v) => handleInputChange('rol', v)}
-              disabled={isLoading}
-            />
-          </View>
-
           {/* Contraseña */}
           <View style={styles.formGroup}>
             <Text style={styles.label}>Contraseña</Text>
             <View style={styles.inputContainer}>
-              <Text style={styles.iconText}>🔒</Text>
+              <Ionicons name="lock-closed-outline" size={18} color="#185FA5" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
                 placeholder="Mínimo 6 caracteres"
@@ -242,7 +201,7 @@ export default function RegisterScreen({ navigation }) {
                 editable={!isLoading}
               />
               <Pressable onPress={() => setShowPassword((v) => !v)} style={styles.iconButton}>
-                <Text style={styles.iconText}>{showPassword ? '👁️' : '👁️‍🗨️'}</Text>
+                <Ionicons name={showPassword ? 'eye-off-outline' : 'eye-outline'} size={18} color="#888780" />
               </Pressable>
             </View>
             {formData.password ? (
@@ -266,7 +225,7 @@ export default function RegisterScreen({ navigation }) {
           <View style={styles.formGroup}>
             <Text style={styles.label}>Confirmar Contraseña</Text>
             <View style={styles.inputContainer}>
-              <Text style={styles.iconText}>🔒</Text>
+              <Ionicons name="lock-closed-outline" size={18} color="#185FA5" style={styles.inputIcon} />
               <TextInput
                 style={styles.input}
                 placeholder="Repite tu contraseña"
@@ -304,113 +263,172 @@ export default function RegisterScreen({ navigation }) {
               {isLoading ? (
                 <ActivityIndicator color="#ffffff" />
               ) : (
-                <Text style={styles.submitButtonText}>Crear Cuenta</Text>
+                <Text style={styles.submitButtonText}>Registrar Cuenta</Text>
               )}
             </Pressable>
           </View>
         </View>
-      </ScrollView>
-    </KeyboardAvoidingView>
+        </ScrollView>
+      </KeyboardAvoidingView>
+    </SafeAreaView>
   );
 }
 
-// ─── Estilos ──────────────────────────────────────────────────────────────────
-
 const styles = StyleSheet.create({
-  container:        { flex: 1, backgroundColor: '#f8f9fa' },
-  scrollContent:    { flexGrow: 1, paddingHorizontal: 20, paddingVertical: 20 },
-
-  headerContainer:  { flexDirection: 'row', alignItems: 'center', marginBottom: 24, paddingTop: 8 },
-  backButton:       { padding: 8, marginRight: 12 },
-  backButtonText:   { fontSize: 18, color: '#1a202c' },
-  headerContent:    { flex: 1 },
-  title:            { fontSize: 28, fontWeight: 'bold', color: '#1a202c', marginBottom: 4 },
-  subtitle:         { fontSize: 14, color: '#718096' },
-
+  container: {
+    flex: 1,
+    backgroundColor: '#ffffff',
+  },
+  scrollContent: {
+    flexGrow: 1,
+    paddingHorizontal: 20,
+    paddingVertical: 32,
+  },
+  headerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 24,
+  },
+  backButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#E6F1FB',
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 12,
+  },
+  headerContent: {
+    flex: 1,
+  },
+  title: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#2C2C2A',
+  },
+  subtitle: {
+    fontSize: 11,
+    color: '#888780',
+    marginTop: 2,
+  },
   formContainer: {
     backgroundColor: '#ffffff',
-    borderRadius: 12,
+    borderRadius: 16,
+    borderWidth: 0.5,
+    borderColor: '#E6F1FB',
     padding: 20,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.1,
-    shadowRadius: 8,
-    elevation: 3,
-    marginBottom: 20,
   },
-
-  formGroup:    { marginBottom: 16 },
-  label:        { fontSize: 14, fontWeight: '600', color: '#2d3748', marginBottom: 8 },
+  formGroup: {
+    marginBottom: 16,
+  },
+  label: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#2C2C2A',
+    marginBottom: 6,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
   inputContainer: {
     flexDirection: 'row',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: '#cbd5e0',
-    borderRadius: 8,
-    backgroundColor: '#f7fafc',
+    borderColor: '#E6F1FB',
+    borderRadius: 12,
+    backgroundColor: '#F4F8FD',
     paddingHorizontal: 12,
   },
-  input:        { flex: 1, paddingVertical: 12, paddingHorizontal: 8, fontSize: 14, color: '#2d3748' },
-  iconText:     { fontSize: 16, marginRight: 4 },
-  iconButton:   { padding: 6 },
-
-  // Selector de rol táctil
-  rolPickerContainer: { flexDirection: 'column', gap: 8 },
-  rolOption: {
-    borderWidth: 1,
-    borderColor: '#cbd5e0',
-    borderRadius: 8,
+  input: {
+    flex: 1,
     paddingVertical: 10,
-    paddingHorizontal: 14,
-    backgroundColor: '#f7fafc',
+    paddingHorizontal: 8,
+    fontSize: 13,
+    color: '#2C2C2A',
   },
-  rolOptionSelected: {
-    borderColor: '#6366f1',
-    backgroundColor: '#eef2ff',
+  inputIcon: {
+    marginRight: 4,
   },
-  rolOptionText:         { fontSize: 14, color: '#4a5568' },
-  rolOptionTextSelected: { color: '#6366f1', fontWeight: '600' },
-
-  // Fortaleza de contraseña
-  strengthContainer: { marginTop: 8 },
-  strengthBar:       { height: 6, backgroundColor: '#e2e8f0', borderRadius: 3, overflow: 'hidden', marginBottom: 4 },
-  strengthFill:      { height: '100%', borderRadius: 3 },
-  strengthText:      { fontSize: 12, fontWeight: '600' },
-
+  iconButton: {
+    padding: 8,
+  },
   alertContainer: {
-    backgroundColor: '#fed7d7',
-    borderLeftWidth: 4,
-    borderLeftColor: '#f56565',
-    borderRadius: 4,
+    backgroundColor: '#FCEBEB',
+    borderWidth: 0.5,
+    borderColor: '#e24b4a',
+    borderRadius: 12,
     padding: 12,
     marginBottom: 16,
     flexDirection: 'row',
+    alignItems: 'center',
   },
-  alertIcon: { fontSize: 18, marginRight: 12, marginTop: 2 },
-  alertText: { flex: 1, fontSize: 14, color: '#742a2a' },
-
-  buttonsContainer: { flexDirection: 'row', gap: 12, marginTop: 24 },
-
-  cancelButton: {
+  alertIcon: {
+    marginRight: 10,
+  },
+  alertText: {
     flex: 1,
+    fontSize: 12,
+    color: '#A32D2D',
+  },
+  strengthContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 8,
+  },
+  strengthBar: {
+    flex: 1,
+    height: 4,
+    backgroundColor: '#E6F1FB',
+    borderRadius: 2,
+    marginRight: 10,
+    overflow: 'hidden',
+  },
+  strengthFill: {
+    height: '100%',
+    borderRadius: 2,
+  },
+  strengthText: {
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  buttonsContainer: {
+    flexDirection: 'row',
+    gap: 8,
+    marginTop: 16,
+  },
+  cancelButton: {
+    flex: 0.35,
     backgroundColor: '#ffffff',
     borderWidth: 1,
-    borderColor: '#cbd5e0',
+    borderColor: '#B5D4F4',
     paddingVertical: 12,
-    borderRadius: 8,
+    borderRadius: 12,
     alignItems: 'center',
   },
-  cancelButtonPressed:  { backgroundColor: '#f7fafc' },
-  cancelButtonText:     { fontSize: 14, fontWeight: '600', color: '#718096' },
-
+  cancelButtonPressed: {
+    backgroundColor: '#F4F8FD',
+  },
+  cancelButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#185FA5',
+  },
   submitButton: {
-    flex: 1,
-    backgroundColor: '#6366f1',
+    flex: 0.65,
+    backgroundColor: '#185FA5',
     paddingVertical: 12,
-    borderRadius: 8,
+    borderRadius: 12,
     alignItems: 'center',
+    justifyContent: 'center',
   },
-  submitButtonPressed:  { backgroundColor: '#4f46e5' },
-  submitButtonText:     { fontSize: 14, fontWeight: '600', color: '#ffffff' },
-  submitButtonDisabled: { backgroundColor: '#cbd5e0' },
+  submitButtonPressed: {
+    opacity: 0.85,
+  },
+  submitButtonText: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#ffffff',
+  },
+  submitButtonDisabled: {
+    backgroundColor: '#cbd5e0',
+  },
 });
