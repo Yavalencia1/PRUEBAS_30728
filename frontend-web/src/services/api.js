@@ -1,5 +1,19 @@
-const API_BASE_URL = 'http://127.0.0.1:8000/api/v1';
-const WS_BASE_URL = 'ws://127.0.0.1:8000/ws';
+const DEFAULT_API_HOST = import.meta.env.VITE_API_HOST || (typeof window !== 'undefined' ? window.location.hostname : '127.0.0.1');
+const DEFAULT_API_PORT = import.meta.env.VITE_API_PORT || '8000';
+const DEFAULT_PROTOCOL = import.meta.env.VITE_API_PROTOCOL || 'http';
+
+export function resolveApiConfig(overrides = {}) {
+  const host = overrides.host || DEFAULT_API_HOST;
+  const port = overrides.port || DEFAULT_API_PORT;
+  const protocol = overrides.protocol || DEFAULT_PROTOCOL;
+
+  const apiBaseUrl = `${protocol}://${host}:${port}/api/v1`;
+  const wsBaseUrl = `${protocol === 'https' ? 'wss' : 'ws'}://${host}:${port}/ws`;
+
+  return { apiBaseUrl, wsBaseUrl };
+}
+
+const { apiBaseUrl: API_BASE_URL, wsBaseUrl: WS_BASE_URL } = resolveApiConfig();
 
 /**
  * Helper base para realizar peticiones HTTP autenticadas
